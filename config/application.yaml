@@ -1,0 +1,16 @@
+app:
+  name: xrfq3
+
+log:
+  level: INFO
+  suffix: log
+  prefix: xrfq3
+  output: .logs
+
+database:
+  postgres:
+    port: 5432
+    host: "127.0.0.1"
+    username: "postgres"
+    password: "password"
+    name: "ilz_q3_ledger"

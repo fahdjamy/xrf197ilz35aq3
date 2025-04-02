@@ -29,17 +29,17 @@ pub fn load_config() -> Result<Configurations,ConfigError> {
 
     // load app environment. default to dev (local/dev) if no env is specified
     let env: Environment = std::env::var(ILZ_Q3_ENV_KEY)
-        .unwrap_or_else(|_| "dev".into())
+        .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("XRF_ENV env variable is not accepted environment");
 
     // load configurations filename for set XRF_ENV environment
-    let env_config_file = format!("{}.yml", env.as_str());
+    let env_config_file = format!("{}.yaml", env.as_str());
 
     // Initialise the configurations
     let config = config::Config::builder()
         // Add base configuration values from a file named `app.yaml`.
-        .add_source(config::File::from(config_path.join("app.yml")))
+        .add_source(config::File::from(config_path.join("application.yaml")))
         // Add configuration values from the environment specific file
         .add_source(config::File::from(config_path.join(env_config_file)))
         // Add configurations set from the exported environment
