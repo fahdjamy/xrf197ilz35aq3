@@ -16,6 +16,7 @@ declare -A REQUIRED_ENV_VARS=(
   [XRF_Q3_PG_DB_URL]="postgres://user:password@localhost/default_db"
   [XRF_Q3_API_KEY]="not_secure_api_key_ilz_aq_12345"
   [XRF_Q3_PORT]="8089"
+  [XRF_Q3_ENV]="local"
   [RUST_LOG]="info"
 )
 # --- End Configuration ---

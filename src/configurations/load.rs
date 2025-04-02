@@ -1,7 +1,7 @@
-use serde::Deserialize;
 use crate::configurations::DatabaseConfig;
-use crate::{Environment, ILZ_Q3_ENV_KEY};
+use crate::{Environment, XRF_Q3_ENV};
 use config::{self, ConfigError};
+use serde::Deserialize;
 
 #[derive(Deserialize, Clone)]
 pub struct Application {
@@ -28,7 +28,7 @@ pub fn load_config() -> Result<Configurations,ConfigError> {
     let config_path = base_path.join("config");
 
     // load app environment. default to dev (local/dev) if no env is specified
-    let env: Environment = std::env::var(ILZ_Q3_ENV_KEY)
+    let env: Environment = std::env::var(XRF_Q3_ENV)
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("XRF_ENV env variable is not accepted environment");
@@ -44,7 +44,7 @@ pub fn load_config() -> Result<Configurations,ConfigError> {
         .add_source(config::File::from(config_path.join(env_config_file)))
         // Add configurations set from the exported environment
         .add_source(
-            config::Environment::with_prefix("XRF")
+            config::Environment::with_prefix("XRF_Q3")
                 .prefix_separator("_")
                 .separator("-"),
         )
