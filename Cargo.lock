@@ -2630,6 +2630,7 @@ dependencies = [
  "serde",
  "serde-aux",
  "sqlx",
+ "tracing",
  "tracing-appender",
  "tracing-bunyan-formatter",
  "tracing-subscriber",
