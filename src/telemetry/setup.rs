@@ -1,6 +1,6 @@
 use tracing_appender::non_blocking;
 use tracing_appender::non_blocking::WorkerGuard;
-use crate::LogConfig;
+use crate::{LogConfig, RequestIdInterceptorLayer};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_subscriber::{fmt, EnvFilter, Layer};
@@ -47,7 +47,7 @@ pub fn setup_tracing_logger(app_name: &str, log_config: &LogConfig) -> WorkerGua
         .with(JsonStorageLayer) // Only concerned w/ info storage, it doesn't do any formatting or provide any output.
         .with(stdout_log_dest) // Console logging
         // add the request ID layer.
-        // .with(RequestIdLayer)
+        .with(RequestIdInterceptorLayer)
         // Set the registry as the global default subscriber.
         // init Attempts to set self as the global default subscriber in the current scope, panics if this fails
         .init();
