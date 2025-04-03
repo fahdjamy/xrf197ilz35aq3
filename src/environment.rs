@@ -2,8 +2,8 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Environment {
-    Dev,
     Live,
+    Local,
     Staging,
     Production,
 }
@@ -11,7 +11,7 @@ pub enum Environment {
 impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Environment::Dev => "dev",
+            Environment::Local => "local",
             Environment::Live => "live",
             Environment::Staging => "stg",
             Environment::Production => "prod",
@@ -19,7 +19,7 @@ impl Environment {
     }
 
     pub fn is_local(&self) -> bool {
-        *self == Environment::Dev
+        *self == Environment::Local
     }
 
     pub fn is_not_local(&self) -> bool {
@@ -40,7 +40,7 @@ impl TryFrom<String> for Environment {
             "live" => Ok(Environment::Live),
             "stg" => Ok(Environment::Staging),
             "prod" => Ok(Environment::Production),
-            "dev" | "local" => Ok(Environment::Dev),
+            "dev" | "local" => Ok(Environment::Local),
             _ => Err(format!("Unknown environment: {}", env)),
         }
     }

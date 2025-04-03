@@ -1,6 +1,7 @@
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use serde_aux::field_attributes::deserialize_number_from_string;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct DatabaseConfig {
