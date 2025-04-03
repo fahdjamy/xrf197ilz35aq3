@@ -2,7 +2,8 @@ use anyhow::anyhow;
 use tracing::{error, info};
 use xrfq3::{load_config, setup_tracing_logger};
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+pub async fn main() -> anyhow::Result<()> {
     let config = load_config().map_err(|err| {
         error!("Failed to load configs, err={}", err);
         anyhow!("Failed to load configuration: {}", err)

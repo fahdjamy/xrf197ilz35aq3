@@ -5,14 +5,22 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
+serde-aux = "4.6.0"
+
 secrecy = { version = "0.10.3", features = ["serde"] }
+
 tracing-appender = "0.2.3"
-config = "0.15.11"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tracing-bunyan-formatter = "0.3.10"
+
+config = "0.15.11"
+
 anyhow = "1.0.97"
-serde-aux = "4.6.0"
+
 tracing = "0.1.41"
+
+tokio = { version = "1.44.1", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1.16.0", features = ["v4"] }
 
 [dependencies.sqlx]
 version = "0.8.3"
