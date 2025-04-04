@@ -17,7 +17,6 @@ pub struct Account {
     pub id: String,
     pub freeze: bool,
     pub user_fp: String,
-    pub account_id: u64,
     pub timezone: String,
     pub account_type: String,
     pub status: AccountStatus,
@@ -28,7 +27,6 @@ pub struct Account {
 impl Account {
     pub fn new() -> Self {
         Account {
-            account_id: 0,
             freeze: false,
             id: "".to_string(),
             user_fp: "".to_string(),
