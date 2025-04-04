@@ -21,6 +21,7 @@ tracing = "0.1.41"
 
 tokio = { version = "1.44.1", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.16.0", features = ["v4"] }
+chrono = "0.4.40"
 
 [dependencies.sqlx]
 version = "0.8.3"
