@@ -1,3 +1,4 @@
+use crate::core::generate_timebase_str_id;
 use crate::DomainError;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -57,8 +58,8 @@ impl Transaction {
         Transaction {
             amount,
             account_id,
-            id: "0".to_string(),
             timestamp: Utc::now(),
+            id: generate_timebase_str_id(),
             status: TransactionStatus::Pending,
             transaction_type: TransactionType::Payment,
         }

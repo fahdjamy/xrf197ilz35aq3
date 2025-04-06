@@ -1,3 +1,4 @@
+use crate::core::generate_timebase_str_id;
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,9 +33,9 @@ impl LedgerEntry {
             entry_type,
             transaction_id,
             description: desc,
-            id: "".to_string(),
             sequence_number: 0,
             timestamp: Utc::now(),
+            id: generate_timebase_str_id(),
         }
     }
 }

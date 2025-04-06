@@ -1,6 +1,10 @@
+use crate::core::generate_str_id;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use serde::Serialize;
+use std::fmt::{write, Display, Formatter};
 
+#[derive(Serialize, Debug, Clone)]
 enum AccountStatus {
     Frozen,
     Active,
@@ -28,6 +32,7 @@ enum AccountStatus {
 ///     4. Seller ships the item, buyer confirms receipt.
 ///     5. The Escrow account is debited $50.
 ///     6. Seller's UserWallet is credited $50. (If the transaction fails, step 5/6 is debiting Escrow and crediting the Buyer's Wallet).
+#[derive(Serialize, Debug, Clone)]
 enum AccountType {
     Normal,
     Wallet,
@@ -35,13 +40,33 @@ enum AccountType {
     SystemFee,
 }
 
+impl Display for AccountType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AccountType::Normal => {
+                write!(f, "Normal Acct")
+            }
+            AccountType::Wallet => {
+                write!(f, "Wallet Acct")
+            }
+            AccountType::Escrow => {
+                write!(f, "Escrow Acct")
+            }
+            AccountType::SystemFee => {
+                write!(f, "SystemFee Acct")
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Debug, Clone)]
 pub struct Account {
     pub id: String,
     pub freeze: bool,
     pub user_fp: String,
     pub timezone: String,
-    pub account_type: String,
     pub status: AccountStatus,
+    pub account_type: AccountType,
     pub creation_time: DateTime<Utc>,
     pub modification_time: DateTime<Utc>,
 }
@@ -50,17 +75,30 @@ impl Account {
     pub fn new() -> Self {
         Account {
             freeze: false,
-            id: "".to_string(),
+            id: generate_str_id(),
             user_fp: "".to_string(),
             timezone: "".to_string(),
-            account_type: "".to_string(),
             status: AccountStatus::Active,
+            account_type: AccountType::Normal,
             creation_time: Default::default(),
             modification_time: Default::default(),
         }
     }
 }
 
+impl Display for Account {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write(
+            f,
+            format_args!(
+                "Acct id={}, timezone={}, acctType={}",
+                self.id, self.timezone, self.account_type
+            ),
+        )
+    }
+}
+
+#[derive(Serialize, Debug, Clone)]
 pub struct AccountBalance {
     pub version: u64,
     pub balance: Decimal,
