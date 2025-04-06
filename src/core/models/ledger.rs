@@ -1,5 +1,6 @@
 use crate::core::generate_timebase_str_id;
 use chrono::{DateTime, Utc};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntryType {
@@ -37,5 +38,15 @@ impl LedgerEntry {
             timestamp: Utc::now(),
             id: generate_timebase_str_id(),
         }
+    }
+}
+
+impl Display for LedgerEntry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "blockId={}, acctId={}, ledgerEntry={}",
+            self.block, self.account_id, self.id
+        )
     }
 }

@@ -5,10 +5,26 @@ use serde::Serialize;
 use std::fmt::{write, Display, Formatter};
 
 #[derive(Serialize, Debug, Clone)]
-enum AccountStatus {
+pub enum AccountStatus {
     Frozen,
     Active,
     Inactive,
+}
+
+impl Display for AccountStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AccountStatus::Frozen => {
+                write!(f, "Frozen")
+            }
+            AccountStatus::Active => {
+                write!(f, "Active")
+            }
+            AccountStatus::Inactive => {
+                write!(f, "Inactive")
+            }
+        }
+    }
 }
 
 /// AccountType:
@@ -106,4 +122,10 @@ pub struct AccountBalance {
     pub account_type: AccountType,
     pub last_entry_id: Option<String>,
     pub modification_time: DateTime<Utc>,
+}
+
+impl Display for AccountBalance {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Acct Bal for = {} | [REDACTED]", self.account_id)
+    }
 }
