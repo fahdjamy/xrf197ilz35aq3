@@ -18,11 +18,11 @@ impl FromStr for TransactionType {
     type Err = DomainError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Payment" => Ok(TransactionType::Payment),
-            "Transfer" => Ok(TransactionType::Transfer),
-            "Reversal" => Ok(TransactionType::Reversal),
-            "Commission" => Ok(TransactionType::Commission),
-            "Correction" => Ok(TransactionType::Correction),
+            "Payment" | "payment" => Ok(TransactionType::Payment),
+            "Transfer" | "transfer" => Ok(TransactionType::Transfer),
+            "Reversal" | "reversal" => Ok(TransactionType::Reversal),
+            "Commission" | "commission" => Ok(TransactionType::Commission),
+            "Correction" | "correction" => Ok(TransactionType::Correction),
             _ => Err(DomainError::InvalidArgument(
                 "unsupported transaction type".to_string(),
             )),

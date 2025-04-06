@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntryType {
@@ -11,11 +10,10 @@ pub enum EntryType {
 pub struct LedgerEntry {
     pub id: String,
     pub block: String,
-    pub amount: Decimal,
     pub account_id: String,
+    pub sequence_number: u64,
     pub entry_type: EntryType,
     pub transaction_id: String,
-    pub sequence_number: String,
     pub timestamp: DateTime<Utc>,
     pub description: Option<String>,
 }
@@ -23,7 +21,6 @@ pub struct LedgerEntry {
 impl LedgerEntry {
     pub fn new(
         block: String,
-        amount: Decimal,
         account_id: String,
         desc: Option<String>,
         entry_type: EntryType,
@@ -31,14 +28,13 @@ impl LedgerEntry {
     ) -> Self {
         LedgerEntry {
             block,
-            amount,
             account_id,
             entry_type,
             transaction_id,
             description: desc,
             id: "".to_string(),
+            sequence_number: 0,
             timestamp: Utc::now(),
-            sequence_number: "".to_string(),
         }
     }
 }
