@@ -1,13 +1,15 @@
+mod common;
 mod configurations;
 mod constants;
-mod environment;
-mod telemetry;
-mod common;
 mod core;
+mod environment;
+mod error;
+mod telemetry;
 
+pub use common::*;
+pub use common::*;
 pub use configurations::*;
 pub use constants::*;
 pub use environment::*;
-pub use common::*;
+pub use error::*;
 pub use telemetry::*;
-pub use common::*;
