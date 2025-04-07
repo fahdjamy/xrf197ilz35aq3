@@ -8,6 +8,19 @@ pub enum EntryType {
     Credit, // Increases liability/equity/revenue, decreases assets/expenses
 }
 
+impl Display for EntryType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EntryType::Debit => {
+                write!(f, "Debit")
+            }
+            EntryType::Credit => {
+                write!(f, "Credit")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerEntry {
     pub id: String,

@@ -3,7 +3,7 @@ use crate::DomainError;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use std::fmt::{write, Display};
+use std::fmt::{write, Display, Formatter};
 use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,6 +43,28 @@ enum TransactionStatus {
     Completed,
 }
 
+impl Display for TransactionStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TransactionStatus::Failed => {
+                write!(f, "Failed")
+            }
+            TransactionStatus::Pending => {
+                write!(f, "Pending")
+            }
+            TransactionStatus::Rejected => {
+                write!(f, "Rejected")
+            }
+            TransactionStatus::Reverted => {
+                write!(f, "Reverted")
+            }
+            TransactionStatus::Completed => {
+                write!(f, "Completed")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Transaction {
     pub id: String,
@@ -67,7 +89,7 @@ impl Transaction {
 }
 
 impl Display for Transaction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write(
             f,
             format_args!(
