@@ -1,9 +1,8 @@
-use tracing::field::Field;
-use tracing::Id;
-use tracing::span::Attributes;
-use tracing_subscriber::layer::Context;
-use uuid::Uuid;
 use crate::{generate_request_id, RequestId, CLIENT_REQ_ID};
+use tracing::field::Field;
+use tracing::span::Attributes;
+use tracing::Id;
+use tracing_subscriber::layer::Context;
 
 struct RequestIdVisitor {
     request_id: Option<String>,
@@ -26,7 +25,7 @@ impl tracing::field::Visit for RequestIdVisitor {
 
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         if field.name() == CLIENT_REQ_ID {
-            self.request_id = Some(value.to_string());
+            self.request_id = Some(format!("{:?}", value));
         }
     }
 }
@@ -35,7 +34,7 @@ impl tracing::field::Visit for RequestIdVisitor {
 #[derive(Debug, Clone)]
 pub struct RequestIdInterceptorLayer;
 
-impl <S> tracing_subscriber::Layer<S> for RequestIdInterceptorLayer
+impl<S> tracing_subscriber::Layer<S> for RequestIdInterceptorLayer
 where
     S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
 {
@@ -47,20 +46,19 @@ where
 
         extensions.insert(RequestIdInterceptorLayer);
 
-        let mut vistor = RequestIdVisitor{
-            request_id: None,
-        };
+        let mut vistor = RequestIdVisitor { request_id: None };
 
         attrs.record(&mut vistor);
         // If we find a request_id in the span attributes, assign it
-        let request_id = if let Some(request_id) = vistor {
+        let request_id = if let Some(request_id) = vistor.request_id {
             request_id
         } else {
             // Generate a new ID if not provided
             // TODO: Only generate for spans that look like top-level requests.
             // Check the span name or a specific field.
             // Get a more robust check based on the span naming conventions.
-            if span.name().contains("top-span-request") { // Example check
+            if span.name().contains("top-span-request") {
+                // Example check
                 generate_request_id()
             } else {
                 // Not a request span or no ID provided, do nothing further
