@@ -1,8 +1,11 @@
 use crate::core::{generate_str_id, Currency};
+use crate::DomainError;
 use chrono::{DateTime, Utc};
+use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use std::fmt::{write, Display, Formatter};
+use std::str::FromStr;
 
 #[derive(Serialize, Debug, Clone)]
 pub enum AccountStatus {
@@ -49,11 +52,27 @@ impl Display for AccountStatus {
 ///     5. The Escrow account is debited $50.
 ///     6. Seller's UserWallet is credited $50. (If the transaction fails, step 5/6 is debiting Escrow and crediting the Buyer's Wallet).
 #[derive(Serialize, Debug, Clone)]
-enum AccountType {
+pub enum AccountType {
     Normal,
     Wallet,
     Escrow,
     SystemFee,
+}
+
+impl FromStr for AccountType {
+    type Err = DomainError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Normal" | "normal" => Ok(AccountType::Normal),
+            "Wallet" | "wallet" => Ok(AccountType::Wallet),
+            "Escrow" | "escrow" => Ok(AccountType::Escrow),
+            "SystemFee" | "system_fee" => Ok(AccountType::SystemFee),
+            _ => Err(DomainError::ParseError(
+                "unrecognized account type".to_string(),
+            )),
+        }
+    }
 }
 
 impl Display for AccountType {
@@ -135,8 +154,8 @@ impl WalletHolding {
         WalletHolding {
             account_id,
             last_entry_id: None,
+            balance: Decimal::zero(),
             modification_time: Utc::now(),
-            balance: Decimal::new(0, 2),
         }
     }
 }
