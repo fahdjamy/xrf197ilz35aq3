@@ -2,8 +2,23 @@ use crate::core::generate_timebase_str_id;
 use crate::DomainError;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub enum BlockVersion {
+    V1,
+}
+
+impl Display for BlockVersion {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BlockVersion::V1 => {
+                write!(f, "block**V1**")
+            }
+        }
+    }
+}
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum BlockRegion {
@@ -14,7 +29,7 @@ pub enum BlockRegion {
 }
 
 impl Display for BlockRegion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             BlockRegion::USEastOhio => {
                 write!(f, "USEastOhio")
@@ -48,10 +63,10 @@ impl FromStr for BlockRegion {
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     pub id: String,
-    pub version: u64,
     pub app_id: String,
     pub chain_stamp: u64,
     pub region: BlockRegion,
+    pub version: BlockVersion,
     pub entry_ids: Vec<String>,
     pub child_stamp: Option<u64>,
     pub ancestor_chain_stamp: u64,
@@ -61,7 +76,6 @@ pub struct Block {
 impl Block {
     pub fn new(
         app_id: String,
-        version: u64,
         region: BlockRegion,
         ancestor_stamp: u64,
         entry_ids: Vec<String>,
@@ -74,10 +88,10 @@ impl Block {
         Ok(Block {
             region,
             app_id,
-            version,
             entry_ids,
             chain_stamp: 0,
             child_stamp: None,
+            version: BlockVersion::V1,
             creation_date: Utc::now(),
             id: generate_timebase_str_id(),
             ancestor_chain_stamp: ancestor_stamp,
@@ -90,7 +104,7 @@ impl Block {
 }
 
 impl Display for Block {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Block :: id={}, region={}", self.id, self.version)
     }
 }

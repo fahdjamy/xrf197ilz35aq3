@@ -1,4 +1,4 @@
-use crate::core::generate_str_id;
+use crate::core::{generate_str_id, Currency};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -81,6 +81,7 @@ pub struct Account {
     pub freeze: bool,
     pub user_fp: String,
     pub timezone: String,
+    pub currency: Currency,
     pub status: AccountStatus,
     pub account_type: AccountType,
     pub creation_time: DateTime<Utc>,
@@ -88,16 +89,23 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new() -> Self {
+    pub fn new(
+        user_fp: String,
+        timezone: String,
+        currency: Currency,
+        account_type: AccountType,
+    ) -> Self {
+        let now = Utc::now();
         Account {
+            user_fp,
+            timezone,
+            currency,
+            account_type,
             freeze: false,
+            creation_time: now,
             id: generate_str_id(),
-            user_fp: "".to_string(),
-            timezone: "".to_string(),
+            modification_time: now,
             status: AccountStatus::Active,
-            account_type: AccountType::Normal,
-            creation_time: Default::default(),
-            modification_time: Default::default(),
         }
     }
 }
@@ -115,16 +123,25 @@ impl Display for Account {
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct AccountBalance {
-    pub version: u64,
+pub struct WalletHolding {
     pub balance: Decimal,
     pub account_id: String, // there should be a 1:1 (account_type x account_id) entry for this
-    pub account_type: AccountType,
     pub last_entry_id: Option<String>,
     pub modification_time: DateTime<Utc>,
 }
 
-impl Display for AccountBalance {
+impl WalletHolding {
+    pub fn new(account_id: String) -> Self {
+        WalletHolding {
+            account_id,
+            last_entry_id: None,
+            modification_time: Utc::now(),
+            balance: Decimal::new(0, 2),
+        }
+    }
+}
+
+impl Display for WalletHolding {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Acct Bal for = {} | [REDACTED]", self.account_id)
     }
