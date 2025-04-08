@@ -1,142 +1,80 @@
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+use crate::DomainError;
+use serde::Serialize;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub enum Currency {
-    #[strum(
-        serialize = "USD",
-        serialize = "usd",
-        serialize = "US Dollar",
-        serialize = "us dollar"
-    )]
     USD,
-    #[strum(
-        serialize = "EUR",
-        serialize = "eur",
-        serialize = "Euro",
-        serialize = "euro"
-    )]
     EUR,
-    #[strum(
-        serialize = "XRP",
-        serialize = "xrp",
-        serialize = "Ripple",
-        serialize = "ripple"
-    )]
     XRP,
-    #[strum(
-        serialize = "RUB",
-        serialize = "rub",
-        serialize = "Russian Ruble",
-        serialize = "russian ruble"
-    )]
     RUB,
-    #[strum(
-        serialize = "ARS",
-        serialize = "ars",
-        serialize = "Argentine Peso",
-        serialize = "argentine peso"
-    )]
     ARS,
-    #[strum(
-        serialize = "BRL",
-        serialize = "brl",
-        serialize = "Brazilian Real",
-        serialize = "brazilian real"
-    )]
     BRL,
-    #[strum(
-        serialize = "CNY",
-        serialize = "cny",
-        serialize = "Chinese Yuan",
-        serialize = "chinese yuan"
-    )]
     CNY,
-    #[strum(
-        serialize = "GBP",
-        serialize = "gbp",
-        serialize = "British Pound",
-        serialize = "british pound",
-        serialize = "Pound Sterling",
-        serialize = "pound sterling"
-    )]
     GBP,
-    #[strum(
-        serialize = "MXN",
-        serialize = "mxn",
-        serialize = "Mexican Peso",
-        serialize = "mexican peso"
-    )]
     MXN,
-    #[strum(
-        serialize = "QAR",
-        serialize = "qar",
-        serialize = "Qatari Rial",
-        serialize = "qatari rial"
-    )]
     QAR,
-    #[strum(
-        serialize = "JPY",
-        serialize = "jpy",
-        serialize = "Japanese Yen",
-        serialize = "japanese yen"
-    )]
     JPY,
     ////////// CRYPTO Currencies
-    #[strum(
-        serialize = "DOGE",
-        serialize = "doge",
-        serialize = "Dogecoin",
-        serialize = "dogecoin"
-    )]
-    DOGE,
-    #[strum(serialize = "XRFQ", serialize = "xrfq")]
-    // Assuming this is a made-up or very specific currency code
     XRFQ,
-    #[strum(
-        serialize = "SOL",
-        serialize = "sol",
-        serialize = "Solana",
-        serialize = "solana",
-        serialize = "SOLANA"
-    )]
     SOL,
-    #[strum(
-        serialize = "BTC",
-        serialize = "btc",
-        serialize = "Bitcoin",
-        serialize = "bitcoin",
-        serialize = "BITCOIN"
-    )]
     BTC,
-    #[strum(
-        serialize = "ETH",
-        serialize = "eth",
-        serialize = "Ethereum",
-        serialize = "ethereum",
-        serialize = "ETHEREUM"
-    )]
     ETH,
-    #[strum(
-        serialize = "ADA",
-        serialize = "ada",
-        serialize = "Cardano",
-        serialize = "cardano",
-        serialize = "CARDANO"
-    )]
     ADA,
-    #[strum(
-        serialize = "USDT",
-        serialize = "usdt",
-        serialize = "Tether",
-        serialize = "tether",
-        serialize = "TETHER"
-    )]
     USDT,
-    #[strum(
-        serialize = "BNB",
-        serialize = "bnb",
-        serialize = "Binance Coin",
-        serialize = "binance coin",
-        serialize = "BNB Coin",
-        serialize = "BinanceCoin"
-    )]
     BNB,
+}
+
+impl FromStr for Currency {
+    type Err = DomainError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "USD" => Ok(Currency::USD),
+            "EUR" => Ok(Currency::EUR),
+            "XRP" => Ok(Currency::XRP),
+            "RUB" => Ok(Currency::RUB),
+            "ARS" => Ok(Currency::ARS),
+            "BRL" => Ok(Currency::BRL),
+            "CNY" => Ok(Currency::CNY),
+            "GBP" => Ok(Currency::GBP),
+            "MXN" => Ok(Currency::MXN),
+            "QAR" => Ok(Currency::QAR),
+            "JPY" => Ok(Currency::JPY),
+            "SOL" => Ok(Currency::SOL),
+            "BTC" => Ok(Currency::BTC),
+            "ETH" => Ok(Currency::ETH),
+            "ADA" => Ok(Currency::ADA),
+            "BNB" => Ok(Currency::BNB),
+            "XRFQ" => Ok(Currency::XRFQ),
+            "USDT" => Ok(Currency::USDT),
+            _ => Err(DomainError::ParseError("unrecognized currency".to_string())),
+        }
+    }
+}
+
+impl Display for Currency {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Currency::USD => write!(f, "USD"),
+            Currency::EUR => write!(f, "EUR"),
+            Currency::XRP => write!(f, "XRP"),
+            Currency::RUB => write!(f, "RUB"),
+            Currency::ARS => write!(f, "ARS"),
+            Currency::BRL => write!(f, "BRL"),
+            Currency::CNY => write!(f, "CNY"),
+            Currency::GBP => write!(f, "GBP"),
+            Currency::MXN => write!(f, "MXN"),
+            Currency::QAR => write!(f, "QAR"),
+            Currency::JPY => write!(f, "JPY"),
+            Currency::XRFQ => write!(f, "XRFQ"),
+            Currency::SOL => write!(f, "SOL"),
+            Currency::BTC => write!(f, "BTC"),
+            Currency::USDT => write!(f, "USDT"),
+            Currency::ADA => write!(f, "ADA"),
+            Currency::ETH => write!(f, "ETH"),
+            Currency::BNB => write!(f, "BNB"),
+        }
+    }
 }

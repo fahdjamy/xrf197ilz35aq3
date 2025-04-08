@@ -1,7 +1,7 @@
-use uuid::Uuid;
 use chrono;
+use uuid::Uuid;
 
-pub struct RequestId(String);
+pub struct RequestId(pub String);
 
 pub fn generate_request_id() -> String {
     // Replace with a more robust generator like UUID if preferred

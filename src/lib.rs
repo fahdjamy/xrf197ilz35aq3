@@ -4,6 +4,7 @@ mod constants;
 mod core;
 mod environment;
 mod error;
+mod orchestrator;
 mod telemetry;
 
 pub use common::*;
