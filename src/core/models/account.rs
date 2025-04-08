@@ -51,7 +51,7 @@ impl Display for AccountStatus {
 ///     4. Seller ships the item, buyer confirms receipt.
 ///     5. The Escrow account is debited $50.
 ///     6. Seller's UserWallet is credited $50. (If the transaction fails, step 5/6 is debiting Escrow and crediting the Buyer's Wallet).
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, Eq, PartialEq)]
 pub enum AccountType {
     Normal,
     Wallet,

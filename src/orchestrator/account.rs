@@ -31,8 +31,15 @@ mod tests {
             "UTC".to_string(),
         );
 
-        dbg!(&result);
-
         assert!(result.is_ok());
+
+        let (account, wallet_holding) = result.unwrap();
+
+        assert_eq!(account.freeze, false);
+        assert!(wallet_holding.balance.is_zero());
+        assert_eq!(account.currency, Currency::BTC);
+        assert!(wallet_holding.last_entry_id.is_none());
+        assert_eq!(wallet_holding.account_id, account.id);
+        assert_eq!(account.account_type, AccountType::Normal);
     }
 }
