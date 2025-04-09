@@ -4,7 +4,7 @@ use config::{self, ConfigError};
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone)]
-pub struct Application {
+pub struct ApplicationConfig {
     pub name: String,
 }
 
@@ -19,11 +19,11 @@ pub struct LogConfig {
 #[derive(serde::Deserialize, Clone)]
 pub struct Configurations {
     pub log: LogConfig,
-    pub app: Application,
+    pub app: ApplicationConfig,
     pub database: DatabaseConfig,
 }
 
-pub fn load_config() -> Result<Configurations,ConfigError> {
+pub fn load_config() -> Result<Configurations, ConfigError> {
     let base_path = std::env::current_dir().expect("Could not determine current directory");
     let config_path = base_path.join("config");
 
