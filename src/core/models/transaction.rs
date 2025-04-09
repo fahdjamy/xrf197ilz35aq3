@@ -15,6 +15,36 @@ pub enum TransactionType {
     Correction,
 }
 
+impl Display for TransactionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TransactionType::Payment => {
+                write!(f, "Payment")
+            }
+            TransactionType::Transfer => {
+                write!(f, "Transfer")
+            }
+            TransactionType::Reversal => {
+                write!(f, "Reversal")
+            }
+            TransactionType::Commission => {
+                write!(f, "Commission")
+            }
+            TransactionType::Correction => {
+                write!(f, "Correction")
+            }
+        }
+    }
+}
+
+impl TransactionType {
+    pub fn must_be_positive(&self) -> bool {
+        *self == TransactionType::Payment
+            || *self == TransactionType::Transfer
+            || *self == TransactionType::Commission
+    }
+}
+
 impl FromStr for TransactionType {
     type Err = DomainError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -34,7 +64,7 @@ impl FromStr for TransactionType {
 /// ***!IMPORTANT***: _Once a Transaction is Completed, its associated LedgerEntry records should never be changed or deleted.
 /// Corrections should be made via new transactions (e.g., a Reversal or Correction transaction type)
 /// that create new offsetting LedgerEntry records. Enforce this through app logic & DB permissions_
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 enum TransactionStatus {
     Failed,
     Pending,
@@ -72,6 +102,7 @@ pub struct Transaction {
     pub account_id: String,
     pub timestamp: DateTime<Utc>,
     pub status: TransactionStatus,
+    pub modification_date: DateTime<Utc>,
     pub transaction_type: TransactionType,
 }
 
@@ -82,9 +113,23 @@ impl Transaction {
             account_id,
             timestamp: Utc::now(),
             transaction_type: tx_type,
+            modification_date: Utc::now(),
             id: generate_timebase_str_id(),
             status: TransactionStatus::Pending,
         }
+    }
+
+    pub fn change_status(&mut self, status: TransactionStatus) -> Result<(), DomainError> {
+        if status == TransactionStatus::Pending {
+            return Err(DomainError::InvalidArgument(
+                "invalid transaction status".to_string(),
+            ));
+        }
+
+        self.status = status;
+        self.modification_date = Utc::now();
+
+        Ok(())
     }
 }
 

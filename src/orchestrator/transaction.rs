@@ -18,7 +18,7 @@ pub fn create_payment_transaction(
         return Err(err.to_string());
     })?;
 
-    if transaction_type == TransactionType::Payment
+    if transaction_type.must_be_positive()
         && (decimal_amount.is_sign_negative() || decimal_amount.is_zero())
     {
         return Err("amount cannot be negative".to_string());
