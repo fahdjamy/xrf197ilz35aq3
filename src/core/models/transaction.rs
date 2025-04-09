@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{write, Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-enum TransactionType {
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub enum TransactionType {
     Payment,
     Transfer,
     Reversal,
@@ -76,14 +76,14 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(amount: Decimal, account_id: String) -> Self {
+    pub fn payment(amount: Decimal, account_id: String, tx_type: TransactionType) -> Self {
         Transaction {
             amount,
             account_id,
             timestamp: Utc::now(),
+            transaction_type: tx_type,
             id: generate_timebase_str_id(),
             status: TransactionStatus::Pending,
-            transaction_type: TransactionType::Payment,
         }
     }
 }
