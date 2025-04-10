@@ -10,4 +10,4 @@ pub const ILZ_Q3_POSTGRES_DB_URL_ENV_KEY: &str = "ILZ_Q3_DB_URL";
 // App internal constants
 pub const CHAIN_STAMP_LEFT_CHAIN: &str = "<";
 pub const CHAIN_STAMP_RIGHT_CHAIN: &str = ">";
-pub const CHAIN_STAMP_PARENT_SEPARATOR: &str = "*";
+pub const CHAIN_STAMP_VERSION_SEPARATOR: &str = "*";
