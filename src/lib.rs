@@ -1,3 +1,4 @@
+mod chain_stamp;
 mod common;
 mod configurations;
 mod constants;
@@ -8,7 +9,8 @@ mod error;
 mod orchestrator;
 mod telemetry;
 
-pub use common::{generate_request_id, ChainStamp, RequestId};
+pub use chain_stamp::ChainStamp;
+pub use common::{generate_request_id, RequestId};
 pub use configurations::*;
 pub use constants::*;
 pub use environment::*;
