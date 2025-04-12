@@ -30,7 +30,7 @@ impl Display for ChainStampVersion {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 /// **ChainStamp**: Sample chain stampId should look like => v1*9203923<39203823>390234082
 ///
-/// i.e. ChainStampVersion*parent/root_stamp_id<current_chain_stamp_id>child_stamp_id
+/// i.e. ChainStampVersion*_parent/root_stamp_id_<_current_chain_stamp_id_>_child_stamp_id_
 pub struct ChainStamp(pub String);
 
 impl ChainStamp {
