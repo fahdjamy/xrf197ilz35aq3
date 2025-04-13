@@ -1,4 +1,5 @@
 use crate::core::generate_timebase_str_id;
+use crate::DomainError;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
@@ -56,8 +57,29 @@ impl ChainStamp {
         }
     }
 
+    /// Binding a chain stamp builds a chain stamp with the same chain id as the binding chain stamp
+    /// But they have to have different parents.
+    /// This type of build should be used when 2 transactions are happening between users.
+    /// For, example, When a user credits a user's wallet, there should be a binding block (chain).
+    pub fn build_bind(
+        root_cs: ChainStamp,
+        binding_cs: &ChainStamp,
+    ) -> Result<ChainStamp, DomainError> {
+        if binding_cs.parent_chain_id().as_ref() == root_cs.stamp_id().as_ref() {
+            return Err(DomainError::InvalidArgument(
+                "Can't build bind: Same parent as current chain stamp".to_string(),
+            ));
+        }
+        Ok(ChainStamp {
+            child_stamp: None,
+            timestamp: binding_cs.timestamp,
+            version: binding_cs.version.clone(),
+            stamp: binding_cs.stamp_id().to_string(),
+            root_stamp: Some(root_cs.stamp_id().to_string()),
+        })
+    }
+
     pub fn stamp_id(&self) -> &str {
-        // sample => v1*9203923<39203823>390234082
         &*self.stamp
     }
 
