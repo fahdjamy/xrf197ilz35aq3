@@ -1,5 +1,4 @@
 use crate::core::generate_timebase_str_id;
-use crate::CHAIN_STAMP_RIGHT_CHAIN;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
@@ -69,7 +68,7 @@ impl ChainStamp {
         None
     }
 
-    pub fn is_parent_chain(&self, parent_chain_stamp: &ChainStamp) -> bool {
+    pub fn is_parent(&self, parent_chain_stamp: &ChainStamp) -> bool {
         if let Some(parent_stamp) = &self.root_stamp {
             return parent_stamp == parent_chain_stamp.stamp_id();
         }
@@ -96,10 +95,10 @@ impl ChainStamp {
     }
 
     pub fn append_child(&mut self, child_stamp: ChainStamp) -> Result<(), String> {
-        if self.inner().contains(CHAIN_STAMP_RIGHT_CHAIN) {
+        if self.has_child() {
             return Err("can't append a child to chain that already contains child".to_string());
         }
-        if !child_stamp.parent_chain_id() {
+        if !child_stamp.is_parent(&self) {
             return Err("can't append child to chain whose not the parent".to_string());
         }
         let child_stamp_id = child_stamp.stamp_id().to_string();
