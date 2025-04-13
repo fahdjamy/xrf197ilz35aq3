@@ -70,7 +70,6 @@ pub struct Block {
     pub chain_stamp: ChainStamp,
     pub creation_date: DateTime<Utc>,
     pub child_stamp: Option<ChainStamp>,
-    pub ancestor_chain_stamp: ChainStamp,
 }
 
 impl Block {
@@ -79,7 +78,6 @@ impl Block {
         region: BlockRegion,
         entry_ids: Vec<String>,
         chain_stamp: ChainStamp,
-        ancestor_stamp: ChainStamp,
     ) -> Result<Self, DomainError> {
         if entry_ids.is_empty() {
             return Err(DomainError::InvalidArgument(
@@ -95,7 +93,6 @@ impl Block {
             version: BlockVersion::V1,
             creation_date: Utc::now(),
             id: generate_timebase_str_id(),
-            ancestor_chain_stamp: ancestor_stamp,
         })
     }
 

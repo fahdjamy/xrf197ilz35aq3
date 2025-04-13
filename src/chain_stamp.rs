@@ -29,9 +29,6 @@ impl Display for ChainStampVersion {
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-/// **ChainStamp**: Sample chain stampId should look like => v1*9203923<39203823>390234082
-///
-/// i.e. ChainStampVersion*_parent/root_stamp_id_<_current_chain_stamp_id_>_child_stamp_id_
 pub struct ChainStamp {
     pub stamp: String,
     pub timestamp: DateTime<Utc>,
@@ -79,6 +76,17 @@ impl ChainStamp {
         false
     }
 
+    pub fn is_child_chain(&self, child_chain_stamp: &ChainStamp) -> bool {
+        if let Some(child_stamp) = &self.child_stamp {
+            return child_stamp == child_chain_stamp.stamp_id();
+        }
+        false
+    }
+
+    pub fn has_child(&self) -> bool {
+        self.child_stamp.is_some()
+    }
+
     pub fn version(&self) -> ChainStampVersion {
         *self.version
     }
@@ -100,15 +108,46 @@ impl ChainStamp {
         Ok(())
     }
 
-    fn compare_with_root(&self, rhs: &ChainStamp) -> bool {
-        self.stamp_id() == rhs.stamp_id()
-    }
-
-    fn compare_last_root_parts(lhs: &str, rhs: &str) -> bool {
-        if lhs.is_empty() || rhs.is_empty() {
+    /// ChainStamps are equal if
+    ///
+    ///     1. Their roots are the same
+    ///     2. They have the same stamp_id
+    ///     3. And their children are the same
+    pub fn compare_to(&self, rhs: &ChainStamp) -> bool {
+        if (*self.is_root() && !rhs.is_root()) || (!self.is_root() && rhs.is_root()) {
             return false;
         }
-        lhs.len() == rhs.len() && lhs == rhs
+        if (*self.has_child() && !rhs.has_child()) || (!self.has_child() && rhs.has_child()) {
+            return false;
+        }
+        // they are equal if their roots are the same,
+        self.compare_roots(rhs)
+            && *self.stamp_id().to_string() == rhs.stamp_id().to_string()
+            && *self.compare_children(rhs)
+    }
+
+    fn compare_children(&self, rhs: &ChainStamp) -> bool {
+        // return true if both self and rhs don't have children
+        if !self.has_child() && !rhs.has_child() {
+            return true;
+        }
+        // return false if one of them does not have a children
+        if !self.has_child() || !rhs.has_child() {
+            return false;
+        }
+        // it is safe to use unwrap here since we know both  lhs and rhs have children
+        self.child_stamp.as_ref() == rhs.child_stamp.as_ref()
+    }
+
+    fn compare_roots(&self, rhs: &ChainStamp) -> bool {
+        match (&self.root_stamp, &rhs.root_stamp) {
+            // Both are None. They are equal according to your rule.
+            (None, None) => true,
+            // One is Some, the other is None. They are not equal.
+            (Some(_), None) | (None, Some(_)) => false,
+            // Both have values. lhs and rhs strings are bound as &String automatically.
+            (Some(lhs), Some(rhs)) => lhs == rhs,
+        }
     }
 }
 
@@ -121,8 +160,7 @@ impl PartialEq for ChainStamp {
         } else if other.is_root() {
             return false;
         }
-
-        ChainStamp::compare_with_root(self, other)
+        ChainStamp::compare_to(self, other)
     }
 }
 

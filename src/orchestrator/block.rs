@@ -22,14 +22,12 @@ pub fn create_block(
     let entry_ids = ledger_entry_ids.into_iter().collect::<Vec<String>>();
 
     let block_chain_stamp = ChainStamp::build(ancestor_stamp);
-    let ancestor_chain_stamp = ChainStamp("ancestor_chain_stamp".to_string());
 
     let block = Block::new(
         app_config.app_id.to_string(),
         block_region,
         entry_ids,
         block_chain_stamp,
-        ancestor_chain_stamp,
     )
     .map_err(|err| {
         error!("Error creating block: {}", err);
