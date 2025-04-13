@@ -1,9 +1,10 @@
 use crate::core::generate_timebase_str_id;
-use crate::{CHAIN_STAMP_LEFT_CHAIN, CHAIN_STAMP_RIGHT_CHAIN, CHAIN_STAMP_VERSION_SEPARATOR};
+use crate::CHAIN_STAMP_RIGHT_CHAIN;
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 enum ChainStampVersion {
     V1,
 }
@@ -31,63 +32,59 @@ impl Display for ChainStampVersion {
 /// **ChainStamp**: Sample chain stampId should look like => v1*9203923<39203823>390234082
 ///
 /// i.e. ChainStampVersion*_parent/root_stamp_id_<_current_chain_stamp_id_>_child_stamp_id_
-pub struct ChainStamp(pub String);
+pub struct ChainStamp {
+    pub stamp: String,
+    pub timestamp: DateTime<Utc>,
+    pub version: ChainStampVersion,
+    pub root_stamp: Option<String>,
+    pub child_stamp: Option<String>,
+}
 
 impl ChainStamp {
     pub fn build(root_cs: Option<ChainStamp>) -> ChainStamp {
-        if root_cs.is_none() {
-            return ChainStamp(format!(
-                "{}*{}{}",
-                ChainStampVersion::V1,
-                generate_timebase_str_id(),
-                CHAIN_STAMP_RIGHT_CHAIN
-            ));
+        if let Some(root_stamp) = root_cs {
+            return ChainStamp {
+                child_stamp: None,
+                timestamp: Utc::now(),
+                version: ChainStampVersion::V1,
+                stamp: generate_timebase_str_id(),
+                root_stamp: Some(root_stamp.stamp_id().to_string()),
+            };
         }
-        ChainStamp(format!(
-            "{}*{}{}{}",
-            ChainStampVersion::V1,
-            CHAIN_STAMP_LEFT_CHAIN,
-            generate_timebase_str_id(),
-            CHAIN_STAMP_RIGHT_CHAIN
-        ))
+        ChainStamp {
+            root_stamp: None,
+            child_stamp: None,
+            timestamp: Utc::now(),
+            version: ChainStampVersion::V1,
+            stamp: generate_timebase_str_id(),
+        }
     }
 
     pub fn stamp_id(&self) -> &str {
         // sample => v1*9203923<39203823>390234082
-        let parts: Vec<&str> = self.0.split(CHAIN_STAMP_VERSION_SEPARATOR).collect(); // split btn version
-        let parts: Vec<&str> = parts[1].split(CHAIN_STAMP_LEFT_CHAIN).collect(); // split btn parent/root
-        if parts[1].contains(CHAIN_STAMP_RIGHT_CHAIN) {
-            // split btn child
-            parts[1].split(CHAIN_STAMP_RIGHT_CHAIN)[0]
-        }
-        // there's no child, remaining is the id
-        parts[1]
+        &*self.stamp
     }
 
-    pub fn parent_chain_id(&self) -> &str {
-        let parts: Vec<&str> = self.0.split(CHAIN_STAMP_VERSION_SEPARATOR).collect(); // split btn version
-        let parts: Vec<&str> = parts[1].split(CHAIN_STAMP_LEFT_CHAIN).collect(); // split btn parent/root
-
-        parts[0]
+    pub fn parent_chain_id(&self) -> Option<String> {
+        if let Some(parent_stamp) = &self.root_stamp {
+            return Some(parent_stamp.to_string());
+        };
+        None
     }
 
     pub fn is_parent_chain(&self, parent_chain_stamp: &ChainStamp) -> bool {
-        if self.parent_chain_id() == parent_chain_stamp.stamp_id() {
-            return true;
+        if let Some(parent_stamp) = &self.root_stamp {
+            return parent_stamp == parent_chain_stamp.stamp_id();
         }
         false
     }
 
     pub fn version(&self) -> ChainStampVersion {
-        let version_str: &str = self.0.split(CHAIN_STAMP_VERSION_SEPARATOR)[0];
-        ChainStampVersion::from(version_str)
+        *self.version
     }
 
     pub fn is_root(&self) -> bool {
-        if !self.0.contains(CHAIN_STAMP_LEFT_CHAIN) {
-            return true;
-        }
-        false
+        self.root_stamp.is_none()
     }
 
     pub fn append_child(&mut self, child_stamp: ChainStamp) -> Result<(), String> {
@@ -99,40 +96,12 @@ impl ChainStamp {
         }
         let child_stamp_id = child_stamp.stamp_id().to_string();
 
-        self.0.push_str(CHAIN_STAMP_RIGHT_CHAIN);
-        self.0.push_str(&child_stamp_id);
+        self.child_stamp = Some(child_stamp_id);
         Ok(())
     }
 
     fn compare_with_root(&self, rhs: &ChainStamp) -> bool {
-        if self.0.is_empty() && rhs.0.is_empty() {
-            return true;
-        } else if self.0.is_empty() || rhs.0.is_empty() {
-            return false;
-        }
-
-        let chain_value = self.0.split(CHAIN_STAMP_VERSION_SEPARATOR)[0];
-
-        let lhs_parts = chain_value
-            .split(CHAIN_STAMP_VERSION_SEPARATOR)
-            .collect::<Vec<&str>>();
-
-        let rhs_parts = chain_value
-            .split(CHAIN_STAMP_VERSION_SEPARATOR)
-            .collect::<Vec<&str>>();
-
-        if lhs_parts.len() != rhs_parts.len() {
-            return false;
-        }
-
-        let rhs_root_id = lhs_parts[0];
-        let lhs_root_id = rhs_parts[0];
-
-        rhs_root_id.len() == lhs_root_id.len()
-            && rhs_root_id == lhs_root_id
-            && lhs_parts[1..].len() == 1 // make sure remaining parts is one string is lhs
-            && rhs_parts[1..].len() == 1 // make sure remaining parts is one string is rhs
-            && Self::compare_last_root_parts(lhs_parts[1], rhs_parts[1])
+        self.stamp_id() == rhs.stamp_id()
     }
 
     fn compare_last_root_parts(lhs: &str, rhs: &str) -> bool {
@@ -140,10 +109,6 @@ impl ChainStamp {
             return false;
         }
         lhs.len() == rhs.len() && lhs == rhs
-    }
-
-    pub fn inner(&self) -> String {
-        self.0.to_string()
     }
 }
 
@@ -163,6 +128,6 @@ impl PartialEq for ChainStamp {
 
 impl Display for ChainStamp {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[REDACTED]")
+        write!(f, format!("v={}$[REDACTED]", self.version))
     }
 }
