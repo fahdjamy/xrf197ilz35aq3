@@ -64,12 +64,11 @@ impl FromStr for BlockRegion {
 pub struct Block {
     pub id: String,
     pub app_id: String,
+    pub chain: ChainStamp,
     pub region: BlockRegion,
     pub version: BlockVersion,
     pub entry_ids: Vec<String>,
-    pub chain_stamp: ChainStamp,
     pub creation_date: DateTime<Utc>,
-    pub child_stamp: Option<ChainStamp>,
 }
 
 impl Block {
@@ -88,8 +87,7 @@ impl Block {
             region,
             app_id,
             entry_ids,
-            chain_stamp,
-            child_stamp: None,
+            chain: chain_stamp,
             version: BlockVersion::V1,
             creation_date: Utc::now(),
             id: generate_timebase_str_id(),
@@ -97,7 +95,8 @@ impl Block {
     }
 
     pub fn is_tail(&self) -> bool {
-        self.child_stamp.is_none()
+        // if is a tail blockchain if it does not have a child
+        !self.chain.has_child()
     }
 }
 
