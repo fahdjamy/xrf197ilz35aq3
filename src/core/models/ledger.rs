@@ -40,22 +40,15 @@ pub struct LedgerEntry {
     pub account_id: String,
     pub sequence_number: u64,
     pub entry_type: EntryType,
-    pub transaction_id: String,
     pub timestamp: DateTime<Utc>,
     pub description: Option<String>,
 }
 
 impl LedgerEntry {
-    pub fn new(
-        account_id: String,
-        desc: Option<String>,
-        entry_type: EntryType,
-        transaction_id: String,
-    ) -> Self {
+    pub fn new(account_id: String, desc: Option<String>, entry_type: EntryType) -> Self {
         LedgerEntry {
             account_id,
             entry_type,
-            transaction_id,
             description: desc,
             sequence_number: 0,
             timestamp: Utc::now(),

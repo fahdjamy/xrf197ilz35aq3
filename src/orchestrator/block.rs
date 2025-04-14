@@ -23,7 +23,7 @@ pub fn create_block(
 
     let block_chain_stamp = ChainStamp::build(ancestor_stamp);
 
-    let block = Block::new(
+    let block = Block::build(
         app_config.app_id.to_string(),
         block_region,
         entry_ids,

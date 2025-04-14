@@ -73,7 +73,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(
+    pub fn build(
         app_id: String,
         region: BlockRegion,
         entry_ids: Vec<String>,
