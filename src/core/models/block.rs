@@ -108,6 +108,6 @@ impl Display for Block {
 
 impl PartialEq for Block {
     fn eq(&self, other: &Self) -> bool {
-        *self.id == *other.id && *self.app_id == *other.app_id && *self.version == *other.version
+        self.id == other.id && self.app_id == other.app_id && self.version == other.version
     }
 }

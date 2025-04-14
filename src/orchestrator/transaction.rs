@@ -1,6 +1,5 @@
 use crate::core::{Transaction, TransactionType};
 use rust_decimal::Decimal;
-use std::error::Error;
 use std::str::FromStr;
 use tracing::error;
 
@@ -15,7 +14,7 @@ pub fn create_payment_transaction(
     })?;
 
     let transaction_type = TransactionType::from_str(&tx_type).map_err(|err| {
-        return Err(err.to_string());
+        return format!("invalid transaction type: {}", err);
     })?;
 
     if transaction_type.must_be_positive()

@@ -1,5 +1,4 @@
 use chrono;
-use std::fmt::Display;
 use uuid::Uuid;
 
 pub struct RequestId(pub String);
