@@ -1,4 +1,4 @@
-use crate::context::ApplicationContext;
+use crate::context::{ApplicationContext, UserContext};
 use crate::core::{
     Account, AccountType, Block, BlockRegion, Currency, EntryType, LedgerEntry, WalletHolding,
 };
@@ -6,10 +6,9 @@ use crate::{ChainStamp, DomainError};
 use std::str::FromStr;
 
 pub fn create_account(
-    user_fp: String,
     currency: String,
     acct_type: String,
-    timezone: String,
+    user_ctx: UserContext,
     app_cxt: ApplicationContext,
 ) -> Result<(Account, WalletHolding), DomainError> {
     let curr = Currency::from_str(&currency)?;
@@ -17,7 +16,7 @@ pub fn create_account(
     let block_region = BlockRegion::from_str(&app_cxt.region)?;
 
     // 1. create an account
-    let account = Account::new(user_fp, timezone, curr, acct_type);
+    let account = Account::new(user_ctx.user_fp, user_ctx.timezone, curr, acct_type);
     // 2. create wallet that belongs to the account
     let wallet_holding = WalletHolding::new(account.id.clone());
     // 3. Create the initialization transaction. should have a ledger for record keeping
@@ -40,15 +39,13 @@ pub fn create_account(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uuid::Uuid;
 
     #[test]
     pub fn test_create_account() {
         let result = create_account(
-            Uuid::new_v4().to_string(),
             "BTC".to_string(),
             "Normal".to_string(),
-            "UTC".to_string(),
+            UserContext::load_test_ctx(),
             ApplicationContext::load_test_ctx(11),
         );
 
