@@ -7,4 +7,6 @@ pub enum DomainError {
     ParseError(String),
     #[error("{0}")]
     InvalidArgument(String),
+    #[error("{0}")]
+    InvalidState(String),
 }

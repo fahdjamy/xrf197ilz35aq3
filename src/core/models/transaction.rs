@@ -1,6 +1,7 @@
 use crate::core::generate_timebase_str_id;
 use crate::DomainError;
 use chrono::{DateTime, Utc};
+use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::fmt::{write, Display, Formatter};
@@ -13,6 +14,7 @@ pub enum TransactionType {
     Reversal,
     Commission,
     Correction,
+    Initialization,
 }
 
 impl Display for TransactionType {
@@ -32,6 +34,9 @@ impl Display for TransactionType {
             }
             TransactionType::Correction => {
                 write!(f, "Correction")
+            }
+            TransactionType::Initialization => {
+                write!(f, "Initiation")
             }
         }
     }
@@ -71,6 +76,19 @@ enum TransactionStatus {
     Rejected,
     Reverted,
     Completed,
+}
+
+impl TransactionStatus {
+    fn is_final(&self) -> bool {
+        *self == TransactionStatus::Completed
+            || *self == TransactionStatus::Rejected
+            || *self == TransactionStatus::Failed
+            || *self == TransactionStatus::Reverted
+    }
+
+    fn is_initial(&self) -> bool {
+        *self == TransactionStatus::Pending
+    }
 }
 
 impl Display for TransactionStatus {
@@ -119,10 +137,60 @@ impl Transaction {
         }
     }
 
+    pub fn build(
+        amount: Decimal,
+        account_id: String,
+        tx_type: TransactionType,
+        status: TransactionStatus,
+    ) -> Result<Self, DomainError> {
+        let now = Utc::now();
+        // validate transactions if tx_type is Initialization
+        if tx_type == TransactionType::Initialization {
+            if !amount.is_zero() {
+                return Err(DomainError::InvalidArgument(
+                    "amount must be zero for initialization transactions".to_string(),
+                ));
+            } else if status != TransactionStatus::Completed {
+                return Err(DomainError::InvalidArgument(
+                    "status must be completed for initialization transactions".to_string(),
+                ));
+            }
+        } else if amount <= Decimal::zero() {
+            return Err(DomainError::InvalidArgument(
+                "amount must be greater than zero".to_string(),
+            ));
+        } else if tx_type != TransactionType::Initialization && status != TransactionStatus::Pending
+        {
+            return Err(DomainError::InvalidArgument(
+                "Status must be pending".to_string(),
+            ));
+        }
+
+        Ok(Transaction {
+            amount,
+            status,
+            account_id,
+            timestamp: now,
+            modification_date: now,
+            transaction_type: tx_type,
+            id: generate_timebase_str_id(),
+        })
+    }
+
     pub fn change_status(&mut self, status: TransactionStatus) -> Result<(), DomainError> {
         if status == TransactionStatus::Pending {
             return Err(DomainError::InvalidArgument(
                 "invalid transaction status".to_string(),
+            ));
+        }
+        if self.status.is_final() {
+            return Err(DomainError::InvalidState(
+                "cannot change transaction status".to_string(),
+            ));
+        }
+        if self.transaction_type == TransactionType::Initialization {
+            return Err(DomainError::InvalidState(
+                "Initialization transaction are final. Status change is invalid".to_string(),
             ));
         }
 
