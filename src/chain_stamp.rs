@@ -192,11 +192,24 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn test_partial_eq() {
+    pub fn test_partial_eq_similar_chain_stamps() {
         let chain_stamp = ChainStamp::build(None);
         let cloned_chain_stamp = chain_stamp.clone();
 
         assert_eq!(chain_stamp, cloned_chain_stamp);
+    }
+
+    #[test]
+    pub fn test_partial_eq_un_similar_chain_stamps() {
+        let root_stamp = ChainStamp::build(None);
+        let chain_stamp = ChainStamp::build(Some(root_stamp.clone()));
+
+        assert_ne!(chain_stamp, root_stamp);
+
+        let childs_parent_stamp_id = chain_stamp
+            .parent_chain_id()
+            .expect("Failed to get parent chain id");
+        assert_eq!(root_stamp.stamp_id(), childs_parent_stamp_id);
     }
 
     #[test]
