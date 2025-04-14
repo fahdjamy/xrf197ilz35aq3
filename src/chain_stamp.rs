@@ -28,7 +28,7 @@ impl Display for ChainStampVersion {
     }
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Eq)]
 pub struct ChainStamp {
     pub stamp: String,
     pub timestamp: DateTime<Utc>,
@@ -62,20 +62,23 @@ impl ChainStamp {
     /// This type of build should be used when 2 transactions are happening between users.
     /// For, example, When a user credits a user's wallet, there should be a binding block (chain).
     pub fn build_bind(
-        root_cs: ChainStamp,
         binding_cs: &ChainStamp,
+        associate_root_cs: &ChainStamp,
     ) -> Result<ChainStamp, DomainError> {
-        if binding_cs.parent_chain_id().as_ref() == root_cs.stamp_id().as_ref() {
-            return Err(DomainError::InvalidArgument(
-                "Can't build bind: Same parent as current chain stamp".to_string(),
-            ));
+        if let Some(binding_cs_root_stamp) = binding_cs.parent_chain_id() {
+            if binding_cs_root_stamp == associate_root_cs.stamp_id() {
+                return Err(DomainError::InvalidArgument(
+                    "Can't build bind: Same parent as current chain stamp".to_string(),
+                ));
+            }
         }
+
         Ok(ChainStamp {
             child_stamp: None,
             timestamp: binding_cs.timestamp,
             version: binding_cs.version.clone(),
             stamp: binding_cs.stamp_id().to_string(),
-            root_stamp: Some(root_cs.stamp_id().to_string()),
+            root_stamp: Some(associate_root_cs.stamp_id().to_string()),
         })
     }
 
@@ -109,7 +112,7 @@ impl ChainStamp {
     }
 
     pub fn version(&self) -> ChainStampVersion {
-        *self.version
+        self.version.clone()
     }
 
     pub fn is_root(&self) -> bool {
@@ -135,16 +138,16 @@ impl ChainStamp {
     ///     2. They have the same stamp_id
     ///     3. And their children are the same
     pub fn compare_to(&self, rhs: &ChainStamp) -> bool {
-        if (*self.is_root() && !rhs.is_root()) || (!self.is_root() && rhs.is_root()) {
+        if (self.is_root() && !rhs.is_root()) || (!self.is_root() && rhs.is_root()) {
             return false;
         }
-        if (*self.has_child() && !rhs.has_child()) || (!self.has_child() && rhs.has_child()) {
+        if (self.has_child() && !rhs.has_child()) || (!self.has_child() && rhs.has_child()) {
             return false;
         }
         // they are equal if their roots are the same,
         self.compare_roots(rhs)
-            && *self.stamp_id().to_string() == rhs.stamp_id().to_string()
-            && *self.compare_children(rhs)
+            && self.stamp_id().to_string() == rhs.stamp_id().to_string()
+            && self.compare_children(rhs)
     }
 
     fn compare_children(&self, rhs: &ChainStamp) -> bool {
@@ -174,19 +177,39 @@ impl ChainStamp {
 
 impl PartialEq for ChainStamp {
     fn eq(&self, other: &ChainStamp) -> bool {
-        if self.is_root() && other.is_root() {
-            return self.compare_root(other);
-        } else if self.is_root() {
-            return false;
-        } else if other.is_root() {
-            return false;
-        }
         ChainStamp::compare_to(self, other)
     }
 }
 
 impl Display for ChainStamp {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, format!("v={}$[REDACTED]", self.version))
+        write!(f, "v={}$[REDACTED]", self.version)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_partial_eq() {
+        let chain_stamp = ChainStamp::build(None);
+        let cloned_chain_stamp = chain_stamp.clone();
+
+        assert_eq!(chain_stamp, cloned_chain_stamp);
+    }
+
+    #[test]
+    pub fn test_build_bind_between_binding_and_bound_chain() {
+        let root_stamp = ChainStamp::build(None);
+        let binding_chain_stamp = ChainStamp::build(None);
+        let bound_chain_stamp = ChainStamp::build_bind(&binding_chain_stamp, &root_stamp)
+            .expect("failed to build bind chain_stamp");
+
+        let bound_cs_parent_id = bound_chain_stamp
+            .parent_chain_id()
+            .expect("failed to get parent chain id");
+        assert_eq!(bound_cs_parent_id, root_stamp.stamp_id());
+        assert_eq!(binding_chain_stamp.stamp_id(), bound_chain_stamp.stamp_id());
     }
 }
