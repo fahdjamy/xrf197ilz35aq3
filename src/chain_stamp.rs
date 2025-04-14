@@ -132,11 +132,11 @@ impl ChainStamp {
         Ok(())
     }
 
-    /// ChainStamps are equal if
+    /// ChainStamps are equal if:
     ///
-    ///     1. Their roots are the same
-    ///     2. They have the same stamp_id
-    ///     3. And their children are the same
+    ///     1: The chain stamps roots are the same,
+    ///     2. And if both chain stamps have the same stamp_id.
+    ///     3. And if both the chain stamps children are the same.
     pub fn compare_to(&self, rhs: &ChainStamp) -> bool {
         if (self.is_root() && !rhs.is_root()) || (!self.is_root() && rhs.is_root()) {
             return false;

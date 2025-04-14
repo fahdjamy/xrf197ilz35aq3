@@ -45,12 +45,12 @@ impl Display for AccountStatus {
 ///
 /// Examples transaction of an accountTypes in action
 ///
-///     1. Buyer pays $50.
-///     2. Buyer's UserWallet is debited $50.
-///     3. An Escrow account (perhaps specific to this transaction or seller) is credited $50.
-///     4. Seller ships the item, buyer confirms receipt.
-///     5. The Escrow account is debited $50.
-///     6. Seller's UserWallet is credited $50. (If the transaction fails, step 5/6 is debiting Escrow and crediting the Buyer's Wallet).
+///     1. Buyer A pays $50 and Buyer A's UserWallet is debited $50.
+///     3. An Escrow account is created for the Seller, and it is credited $50.
+///     4. The seller transfers the item, Buyer-A confirms that they have received the asset.
+///     5. The Escrow account for the Seller is debited $50.
+///     6. The seller's Wallet is credited $50. (If the transaction fails, step 5/6 is debiting Escrow and crediting the Buyer's Wallet).
+///
 #[derive(Serialize, Debug, Clone, Eq, PartialEq)]
 pub enum AccountType {
     Normal,

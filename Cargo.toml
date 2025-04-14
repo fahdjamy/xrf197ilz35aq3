@@ -2,6 +2,8 @@
 name = "xrfq3"
 version = "1.0.0"
 edition = "2021"
+[lib]
+doctest = false
 
 [dependencies]
 serde = { version = "1.0.219", features = ["derive"] }

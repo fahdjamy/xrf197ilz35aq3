@@ -15,17 +15,19 @@ pub fn create_account(
     let acct_type = AccountType::from_str(&acct_type)?;
     let block_region = BlockRegion::from_str(&app_cxt.region)?;
 
-    // 1. create an account
+    ////// 1. create an account
     let account = Account::new(user_ctx.user_fp, user_ctx.timezone, curr, acct_type);
-    // 2. create wallet that belongs to the account
+
+    ////// 2. create wallet that belongs to the account
     let wallet_holding = WalletHolding::new(account.id.clone());
-    // 3. Create the initialization transaction. should have a ledger for record keeping
+
+    ////// 3. Create the initialization transaction. should have a ledger for record keeping
     let description = Some("initialization for newly created account".to_string());
     let ledger = LedgerEntry::new(account.id.clone(), description, EntryType::Credit);
     let mut entry_ids = Vec::new();
     entry_ids.push(ledger.id.clone());
 
-    // 4. Create block for ledger-entry grouping. This block will contain the root chain_stamp
+    ////// 4. Create block for ledger-entry grouping. This block will contain the root chain_stamp
     let _ = Block::build(
         app_cxt.app_id.to_string(),
         block_region,
