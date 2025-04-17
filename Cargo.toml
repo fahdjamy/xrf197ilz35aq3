@@ -17,7 +17,7 @@ tracing-bunyan-formatter = "0.3.10"
 
 config = "0.15.11"
 
-anyhow = "1.0.97"
+anyhow = "1.0.98"
 
 thiserror = "2.0.12"
 

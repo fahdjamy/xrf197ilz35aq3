@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::fmt::{Display, Formatter};
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
-enum ChainStampVersion {
+pub enum ChainStampVersion {
     V1,
 }
 
