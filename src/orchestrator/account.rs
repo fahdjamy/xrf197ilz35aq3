@@ -1,7 +1,8 @@
 use crate::context::{ApplicationContext, UserContext};
 use crate::core::{
-    Account, AccountType, Block, BlockRegion, Currency, EntryType, LedgerEntry, WalletHolding,
+    Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding,
 };
+use crate::orchestrator::ledger::create_ledger;
 use crate::{ChainStamp, DomainError};
 use std::str::FromStr;
 
@@ -23,7 +24,11 @@ pub fn create_account(
 
     ////// 3. Create the initialization transaction. should have a ledger for record keeping
     let description = Some("initialization for newly created account".to_string());
-    let ledger = LedgerEntry::new(account.id.clone(), description, EntryType::Credit);
+    let ledger = create_ledger(
+        EntryType::Credit.to_string(),
+        account.id.clone(),
+        description,
+    )?;
     let mut entry_ids = Vec::new();
     entry_ids.push(ledger.id.clone());
 
