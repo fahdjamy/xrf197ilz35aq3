@@ -55,17 +55,6 @@ impl LedgerEntry {
             id: generate_timebase_str_id(),
         }
     }
-
-    pub fn update_sequence_number(&mut self, sequence_number: u64) -> Result<(), DomainError> {
-        if sequence_number < self.sequence_number || sequence_number == 0 {
-            return Err(DomainError::InvalidArgument(
-                "invalid sequence number".to_string(),
-            ));
-        }
-        self.sequence_number = sequence_number;
-
-        Ok(())
-    }
 }
 
 impl Display for LedgerEntry {
