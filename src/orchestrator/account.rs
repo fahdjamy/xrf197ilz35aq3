@@ -1,7 +1,5 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::{
-    Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding,
-};
+use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding};
 use crate::orchestrator::ledger::create_ledger;
 use crate::{ChainStamp, DomainError};
 use std::str::FromStr;
