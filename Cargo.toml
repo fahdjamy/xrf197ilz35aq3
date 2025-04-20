@@ -32,7 +32,7 @@ chrono = { version = "0.4.40", features = ["serde"] }
 rust_decimal = { version = "1.37.1", features = ["macros"] }
 
 [dependencies.sqlx]
-version = "0.8.3"
+version = "0.8.5"
 default-features = false
 features = [
     "runtime-tokio-rustls", # tells sqlx to use the tokio runtime for its futures and rustls as TLS backend
