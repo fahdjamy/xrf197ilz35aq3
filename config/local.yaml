@@ -4,3 +4,10 @@ log:
 database:
   postgres:
     require_ssl: false
+  cassandra:
+    ssl: false
+    replication_factor: 1
+  timescale:
+    name: local
+  redis:
+    name: local
