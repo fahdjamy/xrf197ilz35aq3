@@ -7,6 +7,7 @@ mod core;
 mod environment;
 mod error;
 mod orchestrator;
+pub mod storage;
 mod telemetry;
 
 pub use chain_stamp::ChainStamp;

@@ -1,4 +1,4 @@
-mod load;
 mod database;
-pub use load::{LogConfig, load_config};
-pub use database::{DatabaseConfig, Postgres};
+mod load;
+pub use database::{DatabaseConfig, PostgresConfig};
+pub use load::{load_config, LogConfig};
