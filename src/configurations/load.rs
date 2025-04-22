@@ -52,5 +52,19 @@ pub fn load_config() -> Result<Configurations, ConfigError> {
 
     // Try converting the configuration values into our Config type
     let configurations = config.try_deserialize::<Configurations>()?;
+
+    // make sure timescale and postgres Databases are different
+    if configurations.database.postgres.name == configurations.database.timescale.name {
+        return Err(ConfigError::Message(
+            "invalid databases. postgres and timescale have connect to the same db".to_string(),
+        ));
+    }
+    if configurations.database.postgres.name.is_empty()
+        || configurations.database.timescale.name.is_empty()
+    {
+        return Err(ConfigError::Message(
+            "invalid databases. postgres or timescale db name is empty".to_string(),
+        ));
+    }
     Ok(configurations)
 }
