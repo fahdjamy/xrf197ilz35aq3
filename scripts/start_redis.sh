@@ -2,6 +2,12 @@
 set -x
 set -eo pipefail
 
+# 1. Check if Docker command exists
+if ! command -v docker &> /dev/null; then
+    echo "[ERROR] Docker command not found. Please install Docker."
+    exit 1
+fi
+
 # if a redis container is running, print instructions to kill it and exit
 RUNNING_CONTAINER=$(docker ps --filter 'name=redis' --format '{{.ID}}')
 if [[ -n $RUNNING_CONTAINER ]]; then
