@@ -6,6 +6,21 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 #[derive(Clone, Debug, Deserialize)]
 pub struct DatabaseConfig {
     pub postgres: PostgresConfig,
+    pub timescale: TimescaleConfig,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct TimescaleConfig {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    pub port: u16,
+    pub host: String,
+    pub name: String,
+    pub username: String,
+    // determines of db connection needs to be secure or not
+    pub require_ssl: bool,
+    pub password: SecretString,
+
+    pub max_conn: u16,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -21,19 +36,41 @@ pub struct PostgresConfig {
 }
 
 impl PostgresConfig {
+    pub fn new(
+        port: u16,
+        host: String,
+        name: String,
+        username: String,
+        require_ssl: bool,
+        password: SecretString,
+    ) -> Self {
+        Self {
+            port,
+            host,
+            name,
+            username,
+            password,
+            require_ssl,
+        }
+    }
+
     pub fn connect_to_instance(&self) -> PgConnectOptions {
-        let ssl_mode = if self.require_ssl {
+        Self::connect_to_pg_instance(self)
+    }
+
+    fn connect_to_pg_instance(pg_config: &PostgresConfig) -> PgConnectOptions {
+        let ssl_mode = if pg_config.require_ssl {
             PgSslMode::Require
         } else {
             PgSslMode::Prefer
         };
 
         PgConnectOptions::new()
-            .port(self.port)
-            .host(&self.host)
+            .port(pg_config.port)
+            .host(&pg_config.host)
             .ssl_mode(ssl_mode)
-            .username(&self.username)
-            .password(&self.password.expose_secret())
+            .username(&pg_config.username)
+            .password(&pg_config.password.expose_secret())
     }
 
     pub fn connect_to_database(&self, database_name: &str) -> PgConnectOptions {
