@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# This command enables a mode called "xtrace" (sometimes called "verbose mode").
-# the shell script will print out every command it's about to execute, along with any variable substitutions.
-set -x
-
 # set -e: If any command in the script fails (returns a non-zero exit code), the entire script will stop immediately.
 # set -o pipefail: Normally, in a pipeline of commands (e.g., command1 | command2 the exit code of the entire pipeline
 # is determined by the last command. and if any command fails, the whole pipeline is considered failed.
@@ -68,7 +64,7 @@ STOPPED_CONTAINER_ID=$(docker ps -aq -f status=exited -f "name=^/${CONTAINER_NAM
 if [ -n "$STOPPED_CONTAINER_ID" ]; then
     echo "Found stopped container '${CONTAINER_NAME}' (ID: ${STOPPED_CONTAINER_ID}). Re-starting it..."
     docker start "${CONTAINER_NAME}"
-    if docker start "${CONTAINER_NAME}" # re-start timescale image and also check that no failure occurred
+    if ! docker start "${CONTAINER_NAME}" # re-start timescale image and also check that no failure occurred
       then
         echo "[ERROR] Failed to start existing container '${CONTAINER_NAME}'."
         exit 1
