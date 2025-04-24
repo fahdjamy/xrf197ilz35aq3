@@ -3,11 +3,12 @@ use crate::DomainError;
 use chrono::{DateTime, Utc};
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{write, Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "account_status")]
 pub enum AccountStatus {
     Frozen,
     Active,
@@ -51,7 +52,8 @@ impl Display for AccountStatus {
 ///     5. The Escrow account for the Seller is debited $50.
 ///     6. The seller's Wallet is credited $50. (If the transaction fails, step 5/6 is debiting Escrow and crediting the Buyer's Wallet).
 ///
-#[derive(Serialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Debug, Clone, Eq, PartialEq, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "account_type")]
 pub enum AccountType {
     Normal,
     Wallet,
