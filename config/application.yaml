@@ -19,7 +19,7 @@ database:
     user: "cassandra"
     password: "cassandra"
   timescale:
-    port: 5432
+    port: 5443
     max_conn: 5
     host: "127.0.0.1"
     username: "postgres"
