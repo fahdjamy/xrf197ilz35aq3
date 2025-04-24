@@ -58,7 +58,7 @@ mod tests {
 
         let (account, wallet_holding) = result.unwrap();
 
-        assert_eq!(account.freeze, false);
+        assert_eq!(account.locked, false);
         assert!(wallet_holding.balance.is_zero());
         assert_eq!(account.currency, Currency::BTC);
         assert!(wallet_holding.last_entry_id.is_none());

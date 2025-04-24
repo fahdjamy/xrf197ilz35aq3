@@ -97,7 +97,7 @@ impl Display for AccountType {
 #[derive(Serialize, Debug, Clone)]
 pub struct Account {
     pub id: String,
-    pub freeze: bool,
+    pub locked: bool,
     pub user_fp: String,
     pub timezone: String,
     pub currency: Currency,
@@ -120,7 +120,7 @@ impl Account {
             timezone,
             currency,
             account_type,
-            freeze: false,
+            locked: false,
             creation_time: now,
             id: generate_str_id(),
             modification_time: now,

@@ -15,5 +15,5 @@ pub use common::{generate_request_id, RequestId};
 pub use configurations::*;
 pub use constants::*;
 pub use environment::*;
-pub use error::*;
+pub use error::{DomainError, PgDatabaseError};
 pub use telemetry::*;
