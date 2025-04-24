@@ -8,6 +8,6 @@ database:
     ssl: false
     replication_factor: 1
   timescale:
-    name: database_name
+    require_ssl: false
   redis:
     name: local

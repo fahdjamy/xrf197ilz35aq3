@@ -11,9 +11,9 @@ database:
   postgres:
     port: 5432
     host: "127.0.0.1"
-    name: "xrf37ilQdb"
     username: "postgres"
     password: "password"
+    name: "xrf-lgr-3-pg-db"
   cassandra:
     host: "localhost"
     user: "cassandra"
@@ -25,5 +25,6 @@ database:
     username: "postgres"
     password: "password"
     name: "xrf_ilz_ts_db"
+    require_ssl: false
   redis:
     name: local

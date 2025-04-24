@@ -13,7 +13,7 @@ set -o pipefail
 # --- Configuration ---
 # Define the required environment variables and their default values
 declare -A REQUIRED_ENV_VARS=(
-  [XRF_Q3_PG_DB_URL]="postgres://user:password@localhost/default_db"
+  [XRF_Q3_PG_DB_URL]="postgres://postgres:postgres@localhost:5432/xrf-lgr-3-pg-db"
   [XRF_Q3_API_KEY]="not_secure_api_key_ilz_aq_12345"
   [XRF_Q3_PORT]="8089"
   [XRF_Q3_ENV]="local"
