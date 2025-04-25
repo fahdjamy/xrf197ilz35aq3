@@ -20,7 +20,7 @@ pub fn create_account(
     ////// 2. create wallet that belongs to the account
     let wallet_holding = WalletHolding::new(account.id.clone());
 
-    ////// 3. Create the initialization transaction. should have a ledger for record keeping
+    ////// 3. Create the initialization transaction. Should have a ledger for record keeping
     let description = Some("initialization for newly created account".to_string());
     let ledger = create_ledger(
         EntryType::Credit.to_string(),
