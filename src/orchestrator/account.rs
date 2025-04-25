@@ -17,7 +17,7 @@ pub fn create_account(
     ////// 1. create an account
     let account = Account::new(user_ctx.user_fp, user_ctx.timezone, curr, acct_type);
 
-    ////// 2. create wallet that belongs to the account
+    ////// 2. create a wallet that belongs to the account
     let wallet_holding = WalletHolding::new(account.id.clone());
 
     ////// 3. Create the initialization transaction. Should have a ledger for record keeping
@@ -30,7 +30,7 @@ pub fn create_account(
     let mut entry_ids = Vec::new();
     entry_ids.push(ledger.id.clone());
 
-    ////// 4. Create block for ledger-entry grouping. This block will contain the root chain_stamp
+    ////// 4. Create a block for ledger-entry grouping. This block will contain the root chain_stamp
     let _ = Block::build(
         app_cxt.app_id.to_string(),
         block_region,
