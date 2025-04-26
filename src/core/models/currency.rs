@@ -27,6 +27,21 @@ pub enum Currency {
     BNB,
 }
 
+impl Currency {
+    pub fn is_crypto(&self) -> bool {
+        match self {
+            Currency::BTC
+            | Currency::ETH
+            | Currency::SOL
+            | Currency::ADA
+            | Currency::USDT
+            | Currency::XRFQ
+            | Currency::BNB => true,
+            _ => false,
+        }
+    }
+}
+
 impl FromStr for Currency {
     type Err = DomainError;
 

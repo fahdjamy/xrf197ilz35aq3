@@ -1,10 +1,12 @@
 use crate::core::generate_timebase_str_id;
 use crate::DomainError;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "entry_type")]
 pub enum EntryType {
     Debit,  // Increases assets/expenses, decreases liability/equity/revenue
     Credit, // Increases liability/equity/revenue, decreases assets/expenses
