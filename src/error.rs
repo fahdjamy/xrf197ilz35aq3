@@ -77,3 +77,26 @@ impl From<sqlx::Error> for PgDatabaseError {
         }
     }
 }
+
+#[derive(Debug, Error)]
+pub enum OrchestrateError {
+    #[error("`{0}`")]
+    ServerError(String),
+    #[error("`{0}`")]
+    NotFoundError(String),
+    #[error("`{0}`")]
+    InvalidArgument(String),
+    #[error("`{0}`")]
+    DatabaseError(#[from] PgDatabaseError),
+}
+
+impl OrchestrateError {
+    pub fn error_code(&self) -> u16 {
+        match self {
+            OrchestrateError::ServerError(_) => 500,
+            OrchestrateError::DatabaseError(_) => 500,
+            OrchestrateError::NotFoundError(_) => 404,
+            OrchestrateError::InvalidArgument(_) => 400,
+        }
+    }
+}
