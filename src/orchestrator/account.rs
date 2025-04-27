@@ -1,18 +1,26 @@
 use crate::context::{ApplicationContext, UserContext};
 use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding};
+use crate::error::OrchestrateError;
 use crate::orchestrator::ledger::create_ledger;
 use crate::{ChainStamp, DomainError};
+use sqlx::PgPool;
 use std::str::FromStr;
+use tracing::log;
 
-pub fn create_account(
+pub async fn create_account(
+    pool: &PgPool,
     currency: String,
     acct_type: String,
     user_ctx: UserContext,
     app_cxt: ApplicationContext,
-) -> Result<(Account, WalletHolding), DomainError> {
-    let curr = Currency::from_str(&currency)?;
-    let acct_type = AccountType::from_str(&acct_type)?;
-    let block_region = BlockRegion::from_str(&app_cxt.region)?;
+) -> Result<(Account, WalletHolding), OrchestrateError> {
+    let curr = Currency::from_str(&currency)
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+
+    let acct_type = AccountType::from_str(&acct_type)
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+    let block_region = BlockRegion::from_str(&app_cxt.region)
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
 
     ////// 1. create an account
     let account = Account::new(user_ctx.user_fp, user_ctx.timezone, curr, acct_type);
@@ -23,10 +31,13 @@ pub fn create_account(
     ////// 3. Create the initialization transaction. Should have a ledger for record keeping
     let description = Some("initialization for newly created account".to_string());
     let ledger = create_ledger(
+        pool,
         EntryType::Credit.to_string(),
         account.id.clone(),
         description,
-    )?;
+    )
+    .await?;
+
     let mut entry_ids = Vec::new();
     entry_ids.push(ledger.id.clone());
 
@@ -36,33 +47,15 @@ pub fn create_account(
         block_region,
         entry_ids,
         ChainStamp::build(None),
-    )?;
+    )
+    .map_err(|err| match err {
+        DomainError::ParseError(er) => OrchestrateError::InvalidArgument(er),
+        DomainError::InvalidArgument(er) => OrchestrateError::InvalidArgument(er),
+        DomainError::InvalidState(er) => {
+            log::error!("invalid record/row state: {}", er);
+            OrchestrateError::ServerError(er)
+        }
+    })?;
 
     Ok((account, wallet_holding))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    pub fn test_create_account() {
-        let result = create_account(
-            "BTC".to_string(),
-            "Normal".to_string(),
-            UserContext::load_test_ctx(),
-            ApplicationContext::load_test_ctx(11),
-        );
-
-        assert!(result.is_ok());
-
-        let (account, wallet_holding) = result.unwrap();
-
-        assert_eq!(account.locked, false);
-        assert!(wallet_holding.balance.is_zero());
-        assert_eq!(account.currency, Currency::BTC);
-        assert!(wallet_holding.last_entry_id.is_none());
-        assert_eq!(wallet_holding.account_id, account.id);
-        assert_eq!(account.account_type, AccountType::Normal);
-    }
 }

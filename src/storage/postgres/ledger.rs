@@ -3,7 +3,7 @@ use crate::PgDatabaseError;
 use sqlx::PgPool;
 
 #[tracing::instrument(skip(pg_pool, ledger_entry))]
-pub async fn create_ledger(
+pub async fn save_ledger(
     pg_pool: &PgPool,
     ledger_entry: &LedgerEntry,
 ) -> Result<bool, PgDatabaseError> {
