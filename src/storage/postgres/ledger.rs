@@ -1,12 +1,15 @@
 use crate::core::{EntryType, LedgerEntry};
 use crate::PgDatabaseError;
-use sqlx::PgPool;
+use sqlx::{Executor, Postgres};
 
 #[tracing::instrument(skip(pg_pool, ledger_entry))]
-pub async fn save_ledger(
-    pg_pool: &PgPool,
+pub async fn save_ledger<'a, E>(
+    pg_pool: E,
     ledger_entry: &LedgerEntry,
-) -> Result<bool, PgDatabaseError> {
+) -> Result<bool, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
     tracing::info!("Creating new ledger :: entry={}", ledger_entry);
     let result = sqlx::query!(
         "

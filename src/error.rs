@@ -94,7 +94,13 @@ impl OrchestrateError {
     pub fn error_code(&self) -> u16 {
         match self {
             OrchestrateError::ServerError(_) => 500,
-            OrchestrateError::DatabaseError(_) => 500,
+            OrchestrateError::DatabaseError(pg_err) => match pg_err {
+                PgDatabaseError::NotFound => 404,
+                PgDatabaseError::UniqueViolation => 409,
+                PgDatabaseError::RecordExists(_) => 409,
+                PgDatabaseError::ForeignKeyViolation => 409,
+                _ => 500,
+            },
             OrchestrateError::NotFoundError(_) => 404,
             OrchestrateError::InvalidArgument(_) => 400,
         }
