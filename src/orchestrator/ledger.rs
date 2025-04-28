@@ -1,15 +1,18 @@
 use crate::core::{EntryType, LedgerEntry};
 use crate::error::OrchestrateError;
 use crate::storage::save_ledger;
-use sqlx::PgPool;
+use sqlx::{Executor, Postgres};
 use std::str::FromStr;
 
-pub async fn create_ledger(
-    pool: &PgPool,
+pub async fn create_ledger<'a, E>(
+    pool: E,
     entry: String,
     acct_id: String,
     desc: Option<String>,
-) -> Result<LedgerEntry, OrchestrateError> {
+) -> Result<LedgerEntry, OrchestrateError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
     let entry_type = EntryType::from_str(&entry)
         .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
 

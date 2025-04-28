@@ -1,10 +1,10 @@
 use crate::context::{ApplicationContext, UserContext};
 use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding};
 use crate::error::OrchestrateError;
-use crate::orchestrator::ledger::create_ledger;
+use crate::orchestrator::{create_ledger, create_wallet_holding};
 use crate::storage::save_account;
 use crate::{ChainStamp, DomainError, PgDatabaseError};
-use sqlx::{PgConnection, PgPool};
+use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use std::str::FromStr;
 use tracing::log;
 
@@ -31,34 +31,34 @@ pub async fn create_account(
     {
         acct
     } else {
-        transaction.rollback().await.map_err(|err| {
-            log::error!(
-                "failed to rollback transaction for creating a new account: {}",
-                err
-            );
-            OrchestrateError::DatabaseError(PgDatabaseError::TransactionStepError(format!(
-                "failed to rollback transaction for creating a new account: {}",
-                err
-            )))
-        })?;
-
+        rollback_transaction(transaction).await?;
         return Err(OrchestrateError::ServerError(
             "failed to create new account".to_string(),
         ));
     };
 
-    ////// 2. create a wallet that belongs to the account
-    let wallet_holding = WalletHolding::new(new_acct.id.clone());
-
-    ////// 3. Create the initialization transaction. Should have a ledger for record keeping
+    ////// 2. Create the ledger to keep track of the entire transaction [wallet, block, ledger].
+    // Should have a ledger for record keeping
     let description = Some("initialization for newly created account".to_string());
     let ledger = create_ledger(
-        pool,
+        &mut *transaction,
         EntryType::Credit.to_string(),
         new_acct.id.clone(),
         description,
     )
     .await?;
+
+    ////// 3. create a wallet that belongs to the account
+    let wallet_holding = if let Some(wallet) =
+        create_wallet_holding(&mut *transaction, new_acct.id.clone(), ledger.id.clone()).await?
+    {
+        wallet
+    } else {
+        rollback_transaction(transaction).await?;
+        return Err(OrchestrateError::ServerError(
+            "failed to create wallet holding".to_string(),
+        ));
+    };
 
     let mut entry_ids = Vec::new();
     entry_ids.push(ledger.id.clone());
@@ -80,6 +80,22 @@ pub async fn create_account(
     })?;
 
     Ok((new_acct, wallet_holding))
+}
+
+async fn rollback_transaction(
+    transaction: Transaction<'_, Postgres>,
+) -> Result<(), OrchestrateError> {
+    transaction.rollback().await.map_err(|err| {
+        log::error!(
+            "failed to rollback transaction for creating a new account: {}",
+            err
+        );
+        OrchestrateError::DatabaseError(PgDatabaseError::TransactionStepError(format!(
+            "failed to rollback transaction for creating a new account: {}",
+            err
+        )))
+    })?;
+    Ok(())
 }
 
 async fn create_new_acct(
