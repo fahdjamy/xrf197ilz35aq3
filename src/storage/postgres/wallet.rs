@@ -1,14 +1,17 @@
 use crate::core::WalletHolding;
 use crate::PgDatabaseError;
 use rust_decimal::Decimal;
-use sqlx::PgPool;
+use sqlx::{Executor, Postgres};
 use tracing::info;
 
 #[tracing::instrument(skip(pg_pool, holding))]
-pub async fn create_wallet(
-    pg_pool: &PgPool,
+pub async fn create_wallet<'a, E>(
+    pg_pool: E,
     holding: &WalletHolding,
-) -> Result<bool, PgDatabaseError> {
+) -> Result<bool, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
     info!("creating wallet for acctId: {}", &holding.account_id);
     let result = sqlx::query!(
         "
