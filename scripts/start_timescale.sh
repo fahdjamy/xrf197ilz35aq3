@@ -7,7 +7,7 @@ set -eo pipefail
 
 # --- Configuration ---
 # Docker container Name
-CONTAINER_NAME="timescaledb"
+CONTAINER_NAME="timescale_q3_db"
 # TimescaleDB Docker image details | Use recommended HA (High Availability) image
 IMAGE_NAME="timescale/timescaledb-ha"
 # Image version/tag (e.g., pg16, pg17, latest-pg16).
