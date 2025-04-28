@@ -1,10 +1,13 @@
 use crate::core::{Account, AccountStatus, AccountType, Currency};
 use crate::PgDatabaseError;
-use sqlx::PgPool;
+use sqlx::{Executor, Postgres};
 use tracing::info;
 
 #[tracing::instrument(level = "debug", skip(pg_pool, account), name = "Create new account")]
-pub async fn create_account(pg_pool: &PgPool, account: &Account) -> Result<bool, PgDatabaseError> {
+pub async fn save_account<'a, E>(pg_pool: E, account: &Account) -> Result<bool, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
     info!("creating new account :: acct={}", account);
     let result = sqlx::query!(
         "
