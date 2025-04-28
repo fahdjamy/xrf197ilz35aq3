@@ -82,10 +82,8 @@ pub async fn create_account(
     Ok((new_acct, wallet_holding))
 }
 
-async fn rollback_transaction(
-    transaction: Transaction<'_, Postgres>,
-) -> Result<(), OrchestrateError> {
-    transaction.rollback().await.map_err(|err| {
+async fn rollback_transaction(tx: Transaction<'_, Postgres>) -> Result<(), OrchestrateError> {
+    tx.rollback().await.map_err(|err| {
         log::error!(
             "failed to rollback transaction for creating a new account: {}",
             err
