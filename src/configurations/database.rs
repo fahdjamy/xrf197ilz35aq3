@@ -7,6 +7,7 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 pub struct DatabaseConfig {
     pub postgres: PostgresConfig,
     pub timescale: TimescaleConfig,
+    pub cassandra: CassandraConfig,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -21,6 +22,15 @@ pub struct TimescaleConfig {
     pub password: SecretString,
 
     pub max_conn: u16,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct CassandraConfig {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    pub port: u16,
+    pub user: String,
+    pub host: String,
+    pub password: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]

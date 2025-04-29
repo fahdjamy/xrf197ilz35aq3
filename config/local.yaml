@@ -6,6 +6,7 @@ database:
     require_ssl: false
   cassandra:
     ssl: false
+    port: 9044
     replication_factor: 1
   timescale:
     require_ssl: false
