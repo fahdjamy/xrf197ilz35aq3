@@ -11,12 +11,70 @@ env:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ] # Test on both Linux and macOS
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # caching Cargo dependencies: https://github.com/actions/cache
+      - name: Cache Cargo registry and index
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Set up Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable # Later: the app's your specific toolchain version
+
+      - name: Install Cassandra C++ Driver (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          # Install the driver, headers (-dev), and its dependencies (libuv, openssl)
+          sudo apt-get install -y --no-install-recommends libcassandra-dev libuv1-dev libssl-dev pkg-config
+
+      - name: Install Cassandra C++ Driver (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update # Ensure brew is updated
+          # Install the driver and its dependencies
+          brew install cassandra-cpp-driver libuv openssl pkg-config
+
+      - name: Set Build Environment Variables (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Use crate-specific vars if you found them (replace VAR_NAME):
+          # echo "CASSANDRA_SYS_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          # echo "CASSANDRA_SYS_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          
+          # ---- OR ---- Use general variables (adjust paths if needed for specific Linux distros)
+          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LIBRARY_PATH" >> $GITHUB_ENV
+          echo "CPATH=/usr/include:$CPATH" >> $GITHUB_ENV
+          echo "*** Linux ENV Vars Set ***" # Add for debugging
+
+      - name: Set Build Environment Variables (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Use crate-specific vars if you found them (replace VAR_NAME):
+          # echo "CASSANDRA_SYS_LIB_DIR=$(brew --prefix)/lib" >> $GITHUB_ENV
+          # echo "CASSANDRA_SYS_INCLUDE_DIR=$(brew --prefix)/include" >> $GITHUB_ENV
+          
+          # ---- OR ---- Use general variables
+          echo "LIBRARY_PATH=$(brew --prefix)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+          echo "CPATH=$(brew --prefix)/include:$CPATH" >> $GITHUB_ENV
+          echo "*** macOS ENV Vars Set ***" # Add for debugging
+
+      - name: Build Project
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
