@@ -70,7 +70,7 @@ impl FromStr for TransactionType {
 /// Corrections should be made via new transactions (e.g., a Reversal or Correction transaction type)
 /// that create new offsetting LedgerEntry records. Enforce this through app logic & DB permissions_
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
-enum TransactionStatus {
+pub enum TransactionStatus {
     Failed,
     Pending,
     Rejected,
@@ -84,10 +84,6 @@ impl TransactionStatus {
             || *self == TransactionStatus::Rejected
             || *self == TransactionStatus::Failed
             || *self == TransactionStatus::Reverted
-    }
-
-    fn is_initial(&self) -> bool {
-        *self == TransactionStatus::Pending
     }
 }
 
