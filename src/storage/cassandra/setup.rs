@@ -35,3 +35,20 @@ pub async fn connect_session(
 
     Ok(session)
 }
+
+pub async fn create_keyspace(
+    keyspace: &str,
+    replication_factor: u8,
+    session: &cassandra_cpp::Session,
+) -> Result<(), anyhow::Error> {
+    let query = format!("CREATE KEYSPACE IF NOT EXISTS {} WITH REPLICATION = {{ 'class' : 'SimpleStrategy', 'replication_factor' : {} }}",
+                        keyspace,
+                        replication_factor);
+
+    session.execute(query.as_str()).await.map_err(|err| {
+        error!("Failed to create keyspace: {:?}", err);
+        anyhow::anyhow!("Failed to create keyspace :: err={}", err)
+    })?;
+
+    Ok(())
+}
