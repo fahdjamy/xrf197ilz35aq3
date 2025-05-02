@@ -10,6 +10,7 @@ pub async fn connect_session(
     let mut cluster = Cluster::default();
     cluster.set_connect_timeout(Duration::from_micros(2));
 
+    // Specify nodes to contact:
     cluster.set_contact_points(&config.host).map_err(|e| {
         error!("Failed to set contact points to cassandra: {:?}", e);
         anyhow::anyhow!("Failed to set contact points to cassandra :: err={}", e)
@@ -23,6 +24,9 @@ pub async fn connect_session(
             error!("Failed to set credentials to cassandra: {:?}", e);
             anyhow::anyhow!("Failed to set credentials to cassandra :: err={}", e)
         })?;
+
+    // (Optional) How long to wait for connecting before bailing out:
+    cluster.set_connect_timeout(Duration::from_secs(config.connect_timeout as u64));
 
     // Optional: Set other cluster configurations (load balancing, timeouts, etc.)
     // cluster.set_load_balance_round_robin();

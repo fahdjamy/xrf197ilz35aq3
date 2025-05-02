@@ -17,6 +17,7 @@ database:
   cassandra:
     host: "localhost"
     user: "cassandra"
+    connect_timeout: 5
     password: "cassandra"
   timescale:
     port: 5443

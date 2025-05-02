@@ -7,6 +7,7 @@ database:
   cassandra:
     ssl: false
     port: 9044
+    connect_timeout: 5
     replication_factor: 1
   timescale:
     require_ssl: false
