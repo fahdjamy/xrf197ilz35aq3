@@ -35,23 +35,27 @@ pub struct ChainStamp {
     pub version: ChainStampVersion,
     pub root_stamp: Option<String>,
     pub child_stamp: Option<String>,
+    pub modification_time: DateTime<Utc>,
 }
 
 impl ChainStamp {
     pub fn build(root_cs: Option<ChainStamp>) -> ChainStamp {
+        let now = Utc::now();
         if let Some(root_stamp) = root_cs {
             return ChainStamp {
+                timestamp: now,
                 child_stamp: None,
-                timestamp: Utc::now(),
+                modification_time: now,
                 version: ChainStampVersion::V1,
                 stamp: generate_timebase_str_id(),
                 root_stamp: Some(root_stamp.stamp_id().to_string()),
             };
         }
         ChainStamp {
+            timestamp: now,
             root_stamp: None,
             child_stamp: None,
-            timestamp: Utc::now(),
+            modification_time: now,
             version: ChainStampVersion::V1,
             stamp: generate_timebase_str_id(),
         }
@@ -72,10 +76,12 @@ impl ChainStamp {
                 ));
             }
         }
+        let now = Utc::now(); // time is different from binding chain stamp
 
         Ok(ChainStamp {
+            timestamp: now,
             child_stamp: None,
-            timestamp: binding_cs.timestamp,
+            modification_time: now,
             version: binding_cs.version.clone(),
             stamp: binding_cs.stamp_id().to_string(),
             root_stamp: Some(associate_root_cs.stamp_id().to_string()),
