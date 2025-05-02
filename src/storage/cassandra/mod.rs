@@ -1,3 +1,3 @@
-mod connect;
+mod setup;
 
-pub use connect::connect_session;
+pub use setup::connect_session;
