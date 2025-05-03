@@ -1,5 +1,5 @@
 use crate::core::generate_timebase_str_id;
-use crate::{ChainStamp, DomainError};
+use crate::DomainError;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
@@ -65,7 +65,7 @@ pub struct Block {
     pub id: String,
     pub app_id: String,
     pub sequence_num: u64,
-    pub chain: ChainStamp,
+    pub chain_id: String,
     pub region: BlockRegion,
     pub version: BlockVersion,
     pub entry_ids: Vec<String>,
@@ -77,7 +77,7 @@ impl Block {
         app_id: String,
         region: BlockRegion,
         entry_ids: Vec<String>,
-        chain_stamp: ChainStamp,
+        chain_stamp_id: String,
     ) -> Result<Self, DomainError> {
         if entry_ids.is_empty() {
             return Err(DomainError::InvalidArgument(
@@ -89,16 +89,11 @@ impl Block {
             app_id,
             entry_ids,
             sequence_num: 0,
-            chain: chain_stamp,
+            chain_id: chain_stamp_id,
             version: BlockVersion::V1,
             creation_date: Utc::now(),
             id: generate_timebase_str_id(),
         })
-    }
-
-    pub fn is_tail(&self) -> bool {
-        // if is a tail blockchain if it does not have a child
-        !self.chain.has_child()
     }
 }
 

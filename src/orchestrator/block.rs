@@ -27,7 +27,7 @@ pub fn create_block(
         app_config.app_id.to_string(),
         block_region,
         entry_ids,
-        block_chain_stamp,
+        block_chain_stamp.stamp,
     )
     .map_err(|err| {
         error!("Error creating block: {}", err);
