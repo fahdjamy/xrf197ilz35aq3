@@ -3,7 +3,7 @@ use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType,
 use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
 use crate::storage::save_account;
-use crate::{ChainStamp, DomainError, PgDatabaseError};
+use crate::{create_chain_stamp, ChainStamp, DomainError, PgDatabaseError};
 use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use std::str::FromStr;
 use tracing::log;
@@ -63,12 +63,15 @@ pub async fn create_account(
     let mut entry_ids = Vec::new();
     entry_ids.push(ledger.id.clone());
 
-    ////// 4. Create a block for ledger-entry grouping. This block will contain the root chain_stamp
+    ////// 4. Create a chain_stamp for blocks that group ledger entries.
+    let chain_stamp = create_chain_stamp(&mut *transaction, None).await?;
+
+    ////// 5. Create a block for ledger-entry grouping. This block will contain the root chain_stamp
     let _ = Block::build(
         app_cxt.app_id.to_string(),
         block_region,
         entry_ids,
-        ChainStamp::build(None),
+        chain_stamp.stamp,
     )
     .map_err(|err| match err {
         DomainError::ParseError(er) => OrchestrateError::InvalidArgument(er),

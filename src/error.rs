@@ -106,3 +106,13 @@ impl OrchestrateError {
         }
     }
 }
+
+#[derive(Debug, Error)]
+pub enum CassandraDBError {
+    #[error("`{0}`")]
+    Unknown(String),
+    #[error("`{0}`")]
+    InvalidArgument(String),
+    #[error("`{0}`")]
+    NotFound(String),
+}

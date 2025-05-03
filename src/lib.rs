@@ -15,6 +15,6 @@ pub use common::{generate_request_id, RequestId};
 pub use configurations::*;
 pub use constants::*;
 pub use environment::*;
-pub use error::{DomainError, PgDatabaseError};
+pub use error::{CassandraDBError, DomainError, PgDatabaseError};
 pub use orchestrator::*;
 pub use telemetry::*;
