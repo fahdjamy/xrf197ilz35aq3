@@ -115,4 +115,8 @@ pub enum CassandraDBError {
     InvalidArgument(String),
     #[error("`{0}`")]
     NotFound(String),
+    #[error("`{0}`")]
+    ServerError(String),
+    #[error("`{0}`")]
+    ExecutionError(String),
 }
