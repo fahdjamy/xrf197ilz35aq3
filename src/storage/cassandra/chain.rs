@@ -1,18 +1,14 @@
+use crate::core::Block;
 use crate::CassandraDBError;
-use cassandra_cpp::{BindRustType, Consistency, PreparedStatement, RetryPolicy, Session};
+use cassandra_cpp::{
+    BindRustType, CassCollection, Consistency, PreparedStatement, RetryPolicy, Session,
+};
 
-pub async fn save_block_chain(session: Session) -> Result<bool, CassandraDBError> {
-    // The order of columns in the INSERT statement (app_id, sequence_num, id, ...)
-    // must match the order of the placeholders (?, ?, ?, ...)
-    let insert_cql = "INSERT INTO xrf_q3_block.block_chain \
-    (app_id, sequence_num, id, chain_id, region, version, entry_ids, creation_date) \
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    let prepared_insert_stmt = session
-        .prepare(insert_cql)
-        .await
-        .map_err(|err| CassandraDBError::Unknown(err.to_string()))?;
-
-    let key: i64 = 10;
+pub async fn save_block_chain(
+    block: Block,
+    session: Session,
+    prepared_insert_stmt: PreparedStatement,
+) -> Result<bool, CassandraDBError> {
     let mut statement = prepared_insert_stmt.bind(); // Create a bound statement
     statement
         .set_consistency(Consistency::EACH_QUORUM)
@@ -20,9 +16,40 @@ pub async fn save_block_chain(session: Session) -> Result<bool, CassandraDBError
     statement
         .set_retry_policy(RetryPolicy::downgrading_consistency_new())
         .map_err(|err| CassandraDBError::ServerError(err.to_string()))?;
+
+    // set values
     statement
-        .bind(0, key)
-        .map_err(|err| CassandraDBError::Unknown(err.to_string()))?;
+        .bind(0, block.app_id.as_str())
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+    statement
+        .bind(1, block.sequence_num as i64)
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+    statement
+        .bind(2, block.id.as_str())
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+    statement
+        .bind(3, block.chain_id.as_str())
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+    statement
+        .bind(4, block.region.to_string().as_str())
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+    statement
+        .bind(4, block.version.to_string().as_str())
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+
+    let mut entry_ids_col = cassandra_cpp::List::new();
+
+    for entry_id in block.entry_ids {
+        entry_ids_col
+            .append_string(&entry_id)
+            .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+    }
+    statement
+        .bind(5, entry_ids_col)
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
+    statement
+        .bind(6, block.creation_date.timestamp_millis())
+        .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
 
     let result = session
         .execute_with_payloads(&statement)
@@ -32,7 +59,9 @@ pub async fn save_block_chain(session: Session) -> Result<bool, CassandraDBError
     Ok(result.0.row_count() == 1)
 }
 
-async fn prepare(session: &Session) -> cassandra_cpp::Result<PreparedStatement> {
+pub async fn prepare_insert_block_statement(
+    session: &Session,
+) -> cassandra_cpp::Result<PreparedStatement> {
     // The order of columns in the INSERT statement (app_id, sequence_num, id, ...)
     // must match the order of the placeholders (?, ?, ?, ...)
     let insert_cql = "INSERT INTO xrf_q3_block.block_chain \

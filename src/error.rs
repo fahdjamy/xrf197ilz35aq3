@@ -119,4 +119,6 @@ pub enum CassandraDBError {
     ServerError(String),
     #[error("`{0}`")]
     ExecutionError(String),
+    #[error("`{0}`")]
+    SetValueError(String),
 }
