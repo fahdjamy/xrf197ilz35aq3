@@ -23,9 +23,9 @@ thiserror = "2.0.12"
 
 tracing = "0.1.41"
 
-tokio = { version = "1.45.0", features = ["macros", "rt-multi-thread", "full"] }
+tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread", "full"] }
 
-uuid = { version = "1.16.0", features = ["v4", "v7", "v8"] }
+uuid = { version = "1.17.0", features = ["v4", "v7", "v8"] }
 
 chrono = { version = "0.4.41", features = ["serde"] }
 
@@ -34,7 +34,7 @@ rust_decimal = { version = "1.37.1", features = ["macros"] }
 cassandra-cpp = "3.0.2"
 
 [dependencies.sqlx]
-version = "0.8.5"
+version = "0.8.6"
 default-features = false
 features = [
     "runtime-tokio-rustls", # tells sqlx to use the tokio runtime for its futures and rustls as TLS backend
