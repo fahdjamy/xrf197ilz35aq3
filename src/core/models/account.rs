@@ -147,7 +147,7 @@ impl Display for Account {
 pub struct WalletHolding {
     pub balance: Decimal,
     pub account_id: String, // there should be a 1:1 (account_type x account_id) entry for this
-    pub last_entry_id: Option<String>,
+    pub last_entry_id: String,
     pub modification_time: DateTime<Utc>,
 }
 
@@ -155,8 +155,8 @@ impl WalletHolding {
     pub fn new(account_id: String, entry_id: String) -> Self {
         WalletHolding {
             account_id,
+            last_entry_id: entry_id,
             balance: Decimal::zero(),
-            last_entry_id: Some(entry_id),
             modification_time: Utc::now(),
         }
     }

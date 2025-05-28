@@ -57,7 +57,7 @@ pub async fn credit_wallet_holding(
     };
 
     wallet_holding.modification_time = Utc::now();
-    wallet_holding.last_entry_id = Some(ledger_entry_id);
+    wallet_holding.last_entry_id = ledger_entry_id;
     wallet_holding.balance = wallet_holding.balance + amount;
 
     let updated_wallet = update_wallet_balance(pool, &wallet_holding).await?;
@@ -96,7 +96,7 @@ pub async fn debit_wallet(
     }
 
     wallet_holding.modification_time = Utc::now();
-    wallet_holding.last_entry_id = Some(ledger_entry_id);
+    wallet_holding.last_entry_id = ledger_entry_id;
     wallet_holding.balance = wallet_holding.balance - amount;
 
     let updated_wallet = update_wallet_balance(pool, &wallet_holding).await?;
