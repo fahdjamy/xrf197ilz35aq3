@@ -3,7 +3,7 @@ use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType,
 use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
 use crate::storage::save_account;
-use crate::{create_chain_stamp, DomainError, PgDatabaseError};
+use crate::{create_chain_stamp, rollback_db_transaction, DomainError, PgDatabaseError};
 use sqlx::{PgConnection, PgPool, Postgres, Transaction};
 use std::str::FromStr;
 use tracing::log;
@@ -31,7 +31,7 @@ pub async fn create_account(
     {
         acct
     } else {
-        rollback_transaction(transaction).await?;
+        rollback_db_transaction(transaction).await?;
         return Err(OrchestrateError::ServerError(
             "failed to create new account".to_string(),
         ));
@@ -54,7 +54,7 @@ pub async fn create_account(
     {
         wallet
     } else {
-        rollback_transaction(transaction).await?;
+        rollback_db_transaction(transaction).await?;
         return Err(OrchestrateError::ServerError(
             "failed to create wallet holding".to_string(),
         ));
@@ -83,20 +83,6 @@ pub async fn create_account(
     })?;
 
     Ok((new_acct, wallet_holding))
-}
-
-async fn rollback_transaction(tx: Transaction<'_, Postgres>) -> Result<(), OrchestrateError> {
-    tx.rollback().await.map_err(|err| {
-        log::error!(
-            "failed to rollback transaction for creating a new account: {}",
-            err
-        );
-        OrchestrateError::DatabaseError(PgDatabaseError::TransactionStepError(format!(
-            "failed to rollback transaction for creating a new account: {}",
-            err
-        )))
-    })?;
-    Ok(())
 }
 
 async fn create_new_acct(
