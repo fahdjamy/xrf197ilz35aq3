@@ -1,12 +1,10 @@
-use crate::{ChainStamp, PgDatabaseError};
+use crate::core::chain_stamp::ChainStamp;
+use crate::PgDatabaseError;
 use sqlx::{Executor, Postgres};
 use tracing::info;
 
-#[tracing::instrument(level = "debug", skip(pg_pool, chain), name = "Create chain stamp")]
-pub async fn save_chain_stamp<'a, E>(
-    pg_pool: E,
-    chain: &ChainStamp,
-) -> Result<bool, PgDatabaseError>
+#[tracing::instrument(level = "debug", skip(pool, chain), name = "Create chain stamp")]
+pub async fn save_chain_stamp<'a, E>(pool: E, chain: &ChainStamp) -> Result<bool, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
@@ -24,7 +22,7 @@ where
         chain.root_stamp,
         chain.child_stamp
     )
-    .execute(pg_pool)
+    .execute(pool)
     .await?;
 
     Ok(result.rows_affected() == 1)

@@ -1,6 +1,6 @@
+use crate::core::chain_stamp::ChainStamp;
 use crate::error::OrchestrateError;
 use crate::storage::save_chain_stamp;
-use crate::ChainStamp;
 use sqlx::{Executor, Postgres};
 
 pub async fn create_chain_stamp<'a, E>(

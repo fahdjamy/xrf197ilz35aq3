@@ -1,5 +1,6 @@
 mod account;
 mod block;
+pub mod chain_stamp;
 mod currency;
 mod ledger;
 mod transaction;

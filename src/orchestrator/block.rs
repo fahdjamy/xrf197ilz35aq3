@@ -1,6 +1,6 @@
 use crate::context::ApplicationContext;
+use crate::core::chain_stamp::ChainStamp;
 use crate::core::{Block, BlockRegion};
-use crate::ChainStamp;
 use std::collections::HashSet;
 use std::str::FromStr;
 use tracing::error;
