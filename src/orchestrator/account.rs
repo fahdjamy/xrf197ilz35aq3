@@ -3,8 +3,8 @@ use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType,
 use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
 use crate::storage::save_account;
-use crate::{create_chain_stamp, rollback_db_transaction, DomainError, PgDatabaseError};
-use sqlx::{PgConnection, PgPool, Postgres, Transaction};
+use crate::{create_chain_stamp, rollback_db_transaction, DomainError};
+use sqlx::{PgConnection, PgPool};
 use std::str::FromStr;
 use tracing::log;
 

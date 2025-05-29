@@ -110,7 +110,7 @@ impl Display for TransactionStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct Transaction {
+pub struct MonetaryTransaction {
     pub id: String,
     pub amount: Decimal,
     pub account_id: String,
@@ -120,9 +120,9 @@ pub struct Transaction {
     pub transaction_type: TransactionType,
 }
 
-impl Transaction {
+impl MonetaryTransaction {
     pub fn payment(amount: Decimal, account_id: String, tx_type: TransactionType) -> Self {
-        Transaction {
+        MonetaryTransaction {
             amount,
             account_id,
             timestamp: Utc::now(),
@@ -162,7 +162,7 @@ impl Transaction {
             ));
         }
 
-        Ok(Transaction {
+        Ok(MonetaryTransaction {
             amount,
             status,
             account_id,
@@ -197,7 +197,7 @@ impl Transaction {
     }
 }
 
-impl Display for Transaction {
+impl Display for MonetaryTransaction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write(
             f,

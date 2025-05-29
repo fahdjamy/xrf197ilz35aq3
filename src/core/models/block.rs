@@ -64,8 +64,8 @@ impl FromStr for BlockRegion {
 pub struct Block {
     pub id: String,
     pub app_id: String,
-    pub sequence_num: u64,
     pub chain_id: String,
+    pub sequence_num: u64,
     pub region: BlockRegion,
     pub version: BlockVersion,
     pub entry_ids: Vec<String>,

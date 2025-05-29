@@ -1,4 +1,4 @@
-use crate::core::{Transaction, TransactionType};
+use crate::core::{MonetaryTransaction, TransactionType};
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use tracing::error;
@@ -7,7 +7,7 @@ pub fn create_payment_transaction(
     amount: String,
     tx_type: String,
     account_id: String,
-) -> Result<Transaction, String> {
+) -> Result<MonetaryTransaction, String> {
     let decimal_amount = Decimal::from_str(&amount).map_err(|e| {
         error!("invalid decimal_amount: {}", e);
         return format!("invalid decimal_amount: {}", amount);
@@ -23,6 +23,6 @@ pub fn create_payment_transaction(
         return Err("amount cannot be negative".to_string());
     }
 
-    let tx = Transaction::payment(decimal_amount, account_id, transaction_type);
+    let tx = MonetaryTransaction::payment(decimal_amount, account_id, transaction_type);
     Ok(tx)
 }
