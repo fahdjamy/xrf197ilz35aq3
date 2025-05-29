@@ -12,7 +12,7 @@ mod telemetry;
 pub use common::{generate_request_id, RequestId};
 pub use configurations::*;
 pub use constants::*;
-pub use environment::*;
+pub use environment::Environment;
 pub use error::{CassandraDBError, DomainError, PgDatabaseError};
 pub use orchestrator::*;
 pub use telemetry::*;

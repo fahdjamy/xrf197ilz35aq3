@@ -2,6 +2,7 @@ mod account;
 mod chain;
 mod initialize;
 mod ledger;
+mod transactions;
 mod wallet;
 
 pub use account::save_account;

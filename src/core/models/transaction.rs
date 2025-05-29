@@ -208,3 +208,37 @@ impl Display for MonetaryTransaction {
         )
     }
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ActivityTransaction {
+    pub id: String,
+    pub block_id: String,
+    pub chain_id: String,
+    pub timestamp: DateTime<Utc>,
+    pub modification_time: DateTime<Utc>,
+}
+
+impl ActivityTransaction {
+    pub fn new(block_id: String, chain_id: String) -> Self {
+        let now = Utc::now();
+        ActivityTransaction {
+            block_id,
+            chain_id,
+            timestamp: now,
+            modification_time: now,
+            id: generate_timebase_str_id(),
+        }
+    }
+}
+
+impl Display for ActivityTransaction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write(
+            f,
+            format_args!(
+                "activity transaction id={} :: for blockId={}, chainId={}",
+                self.id, self.block_id, self.chain_id
+            ),
+        )
+    }
+}
