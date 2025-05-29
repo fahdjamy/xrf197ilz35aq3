@@ -2,8 +2,9 @@ use crate::context::{ApplicationContext, UserContext};
 use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
-use crate::storage::save_account;
+use crate::storage::{save_account, save_block_chain, PreparedAppStatements};
 use crate::{create_chain_stamp, rollback_db_transaction, DomainError};
+use cassandra_cpp::Session;
 use sqlx::{PgConnection, PgPool};
 use std::str::FromStr;
 use tracing::log;
@@ -13,7 +14,9 @@ pub async fn create_account(
     currency: String,
     acct_type: String,
     user_ctx: UserContext,
+    cassandra_session: Session,
     app_cxt: ApplicationContext,
+    statements: PreparedAppStatements,
 ) -> Result<(Account, WalletHolding), OrchestrateError> {
     let block_region = BlockRegion::from_str(&app_cxt.region)
         .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
@@ -67,7 +70,7 @@ pub async fn create_account(
     let chain_stamp = create_chain_stamp(&mut *transaction, None).await?;
 
     ////// 5. Create a block for ledger-entry grouping. This block will contain the root chain_stamp
-    let _ = Block::build(
+    let block = Block::build(
         app_cxt.app_id.to_string(),
         block_region,
         entry_ids,
@@ -81,6 +84,25 @@ pub async fn create_account(
             OrchestrateError::ServerError(er)
         }
     })?;
+
+    let block_saved = save_block_chain(block, cassandra_session, statements.insert_block_stmt)
+        .await
+        .map_err(|err| {
+            log::error!("failed to save block to cassandra DB: {}", err);
+            OrchestrateError::ServerError(err.to_string())
+        })?;
+
+    if block_saved {
+        transaction.commit().await.map_err(|err| {
+            log::error!("failed to commit transaction: {}", err);
+            OrchestrateError::ServerError(err.to_string())
+        })?;
+    } else {
+        rollback_db_transaction(transaction).await?;
+        return Err(OrchestrateError::ServerError(
+            "failed to save block to DB".to_string(),
+        ));
+    }
 
     Ok((new_acct, wallet_holding))
 }
