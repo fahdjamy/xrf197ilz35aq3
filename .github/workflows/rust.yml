@@ -49,7 +49,7 @@ jobs:
           echo "Starting: Add DataStax GPG Key"
           # Added --connect-timeout and --max-time to curl
           # Increased verbosity for gpg
-          curl --verbose --show-error --connect-timeout 15 --max-time 60 -fsSL https://downloads.datastax.com/cpp-driver/repo/repo_key | sudo gpg --verbose --dearmor -o /usr/share/keyrings/datastax-archive-keyring.gpg
+          curl --verbose --show-error --connect-timeout 15 --max-time 60 -fsSL YOUR_NEW_DATASTAX_GPG_KEY_URL | sudo gpg --verbose --dearmor -o /usr/share/keyrings/datastax-archive-keyring.gpg
           # Verify the key file was created
           sudo ls -l /usr/share/keyrings/datastax-archive-keyring.gpg
           echo "Finished: Add DataStax GPG Key"
