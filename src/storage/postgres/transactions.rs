@@ -3,22 +3,15 @@ use crate::PgDatabaseError;
 use sqlx::{Executor, Postgres};
 use tracing::info;
 
-#[tracing::instrument(
-    level = "debug",
-    skip(pool, transaction),
-    name = "Create new activity transaction"
-)]
-pub async fn create_activity_transaction<'a, E>(
+#[tracing::instrument(level = "debug", skip(pool, activity), name = "Create new activity")]
+pub async fn save_activity<'a, E>(
     pool: E,
-    transaction: &ActivityTransaction,
+    activity: &ActivityTransaction,
 ) -> Result<bool, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
-    info!(
-        "creating activity transaction :: transaction={}",
-        transaction
-    );
+    info!("creating activity  :: transaction={}", activity);
     let result = sqlx::query!(
         "
 INSERT INTO activity_transaction (
@@ -29,11 +22,11 @@ INSERT INTO activity_transaction (
             chain_id
             )
             VALUES ($1, $2, $3, $4, $5)",
-        transaction.id,
-        transaction.timestamp,
-        transaction.modification_time,
-        transaction.block_id,
-        transaction.chain_id
+        activity.id,
+        activity.timestamp,
+        activity.modification_time,
+        activity.block_id,
+        activity.chain_id
     )
     .execute(pool)
     .await?;
