@@ -45,7 +45,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # caching Cargo dependencies: https://github.com/actions/cache
       - name: Cache Cargo registry and index
         uses: actions/cache@v3
         with:
@@ -74,13 +73,13 @@ jobs:
               echo "/opt/homebrew/opt/libpq/bin" >> $GITHUB_PATH # For Apple Silicon
               echo "/usr/local/opt/libpq/bin" >> $GITHUB_PATH # For Intel Macs
 
-      - name: Install Cassandra C++ Driver (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          echo "Installing Cassandra C++ Driver on macOS..."
-          brew update || echo "Brew update failed, continuing..." # Sometimes brew update can be flaky
-          brew install cassandra-cpp-driver libuv openssl pkg-config cmake
-          echo "Finished: Install Cassandra C++ Driver (macOS)"
+      #      - name: Install Cassandra C++ Driver (macOS)
+      #        if: runner.os == 'macOS'
+      #        run: |
+      #          echo "Installing Cassandra C++ Driver on macOS..."
+      #          brew update || echo "Brew update failed, continuing..." # Sometimes brew update can be flaky
+      #          brew install cassandra-cpp-driver libuv openssl pkg-config cmake
+      #          echo "Finished: Install Cassandra C++ Driver (macOS)"
 
       - name: Install and Start Cassandra (macOS)
         if: runner.os == 'macOS'
@@ -124,6 +123,14 @@ jobs:
           done
           echo "Cassandra started successfully."
           $NODETOOL_PATH status
+          
+      - name: Install Cassandra C++ Driver (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "Installing Cassandra C++ Driver on macOS..."
+          brew update || echo "Brew update failed, continuing..." # Sometimes brew update can be flaky
+          brew install cassandra-cpp-driver libuv openssl pkg-config cmake
+          echo "Finished: Install Cassandra C++ Driver (macOS)"
 
       - name: Set Build Environment Variables (macOS)
         if: runner.os == 'macOS'
