@@ -38,20 +38,25 @@ jobs:
       - name: Install Cassandra C++ Driver (Linux)
         if: runner.os == 'Linux'
         run: |
-          # Add Datastax GPG key
-          # Note: The key URL and repository details can change.
-          # Always verify against the official DataStax C++ Driver installation documentation for Ubuntu.
-          # As of my last update, these were common steps:
-          wget -qO - https://downloads.datastax.com/cpp-driver/repo/repo_key | sudo apt-key add -
+          # 1. Install prerequisites for managing HTTPS apt sources and GPG keys
+          #    (ca-certificates, curl, gnupg are often already present on GitHub runners but good to ensure)
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends apt-transport-https ca-certificates curl gnupg lsb-release
           
-          # Add Datastax repository
-          # $(lsb_release -sc) gets the codename of the Ubuntu version (e.g., focal, jammy)
-          echo "deb https://downloads.datastax.com/cpp-driver/ubuntu/$(lsb_release -sc) $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/datastax.sources.list
+          # 2. Download DataStax GPG key, dearmor it, and store it as a .gpg file
+          #    NOTE: ALWAYS verify GPG key URLs from the official DataStax documentation, as they can change.
+          #    The URL used here is based on previous common practice.
+          curl -fsSL https://downloads.datastax.com/cpp-driver/repo/repo_key | sudo gpg --dearmor -o /usr/share/keyrings/datastax-archive-keyring.gpg
           
-          # Update package list again after adding new repository
+          # 3. Add DataStax repository, specifying the architecture and the keyring for signing
+          #    $(dpkg --print-architecture) gets the architecture (e.g., amd64)
+          #    $(lsb_release -sc) gets the codename of the Ubuntu version (e.g., focal, jammy)
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/datastax-archive-keyring.gpg] https://downloads.datastax.com/cpp-driver/ubuntu/$(lsb_release -sc) $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/datastax.sources.list > /dev/null
+          
+          # 4. Update package list again after adding new repository and its key
           sudo apt-get update -qq
           
-          # Now install the driver and its dependencies
+          # 5. Now install the driver and its dependencies
           sudo apt-get install -y --no-install-recommends libdatastax-cpp-driver-dev libuv1-dev libssl-dev pkg-config
 
       - name: Install Cassandra C++ Driver (macOS)
