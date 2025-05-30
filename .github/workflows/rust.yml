@@ -35,29 +35,47 @@ jobs:
         with:
           toolchain: stable # Later: the app's your specific toolchain version
 
+      - name: Install Prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Starting: Install Prerequisites"
+          sudo apt-get update -vv # Increased verbosity
+          sudo apt-get install -y --no-install-recommends apt-transport-https ca-certificates curl gnupg lsb-release
+          echo "Finished: Install Prerequisites"
+
+      - name: Add DataStax GPG Key (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Starting: Add DataStax GPG Key"
+          # Added --connect-timeout and --max-time to curl
+          # Increased verbosity for gpg
+          curl --verbose --show-error --connect-timeout 15 --max-time 60 -fsSL https://downloads.datastax.com/cpp-driver/repo/repo_key | sudo gpg --verbose --dearmor -o /usr/share/keyrings/datastax-archive-keyring.gpg
+          # Verify the key file was created
+          sudo ls -l /usr/share/keyrings/datastax-archive-keyring.gpg
+          echo "Finished: Add DataStax GPG Key"
+
+      - name: Add DataStax APT Repository (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Starting: Add DataStax APT Repository"
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/datastax-archive-keyring.gpg] https://downloads.datastax.com/cpp-driver/ubuntu/$(lsb_release -sc) $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/datastax.sources.list > /dev/null
+          # Verify the repo file was created
+          sudo cat /etc/apt/sources.list.d/datastax.sources.list
+          echo "Finished: Add DataStax APT Repository"
+
+      - name: Update APT Cache for DataStax Repo (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "Starting: Update APT Cache for DataStax Repo"
+          sudo apt-get update -vv # Increased verbosity
+          echo "Finished: Update APT Cache for DataStax Repo"
+
       - name: Install Cassandra C++ Driver (Linux)
         if: runner.os == 'Linux'
         run: |
-          # 1. Install prerequisites for managing HTTPS apt sources and GPG keys
-          #    (ca-certificates, curl, gnupg are often already present on GitHub runners but good to ensure)
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends apt-transport-https ca-certificates curl gnupg lsb-release
-          
-          # 2. Download DataStax GPG key, dearmor it, and store it as a .gpg file
-          #    NOTE: ALWAYS verify GPG key URLs from the official DataStax documentation, as they can change.
-          #    The URL used here is based on previous common practice.
-          curl -fsSL https://downloads.datastax.com/cpp-driver/repo/repo_key | sudo gpg --dearmor -o /usr/share/keyrings/datastax-archive-keyring.gpg
-          
-          # 3. Add DataStax repository, specifying the architecture and the keyring for signing
-          #    $(dpkg --print-architecture) gets the architecture (e.g., amd64)
-          #    $(lsb_release -sc) gets the codename of the Ubuntu version (e.g., focal, jammy)
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/datastax-archive-keyring.gpg] https://downloads.datastax.com/cpp-driver/ubuntu/$(lsb_release -sc) $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/datastax.sources.list > /dev/null
-          
-          # 4. Update package list again after adding new repository and its key
-          sudo apt-get update -qq
-          
-          # 5. Now install the driver and its dependencies
+          echo "Starting: Install Cassandra C++ Driver"
           sudo apt-get install -y --no-install-recommends libdatastax-cpp-driver-dev libuv1-dev libssl-dev pkg-config
+          echo "Finished: Install Cassandra C++ Driver"
 
       - name: Install Cassandra C++ Driver (macOS)
         if: runner.os == 'macOS'
