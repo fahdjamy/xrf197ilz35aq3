@@ -8,14 +8,38 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # PostgresSQL Env Vars: The 'services' block below will also use these for the postgres container
+  POSTGRES_DB: test_db
+  POSTGRES_USER: runner
+  POSTGRES_PASSWORD: password
+  DATABASE_URL: postgresql://runner:password@localhost:5432/test_db # Adjust if the app uses a different port/host from services
+
 
 jobs:
-  build:
+  build_and_test:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ] # Test on both Linux and macOS
 
     runs-on: ${{ matrix.os }}
+
+    # Service containers for databases (PostgresSQL)
+    # This starts a PostgresSQL container alongside your job.
+    services:
+      postgres:
+        image: postgres:15 # Specify a version you need
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432 # Maps container port 5432 to host port 5432
+        # Health checks to wait until Postgres is ready
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -33,80 +57,85 @@ jobs:
       - name: Set up Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable # Later: the app's your specific toolchain version
+          toolchain: stable # Or your specific toolchain version
+          profile: minimal
 
-      - name: Install Prerequisites (Linux)
-        if: runner.os == 'Linux'
+      # --- PostgresSQL Setup (Linux & macOS) ---
+      # The 'services' block above handles PostgresSQL for both OS.
+      - name: Install PostgresSQL Client (OS & Linux)
+        #        if: runner.os == 'Linux'
         run: |
-          echo "Starting: Install Prerequisites"
-          sudo apt-get update -vv # Increased verbosity
-          sudo apt-get install -y --no-install-recommends apt-transport-https ca-certificates curl gnupg lsb-release
-          echo "Finished: Install Prerequisites"
-
-      - name: Add DataStax GPG Key (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          echo "Starting: Add DataStax GPG Key"
-          # Added --connect-timeout and --max-time to curl
-          # Increased verbosity for gpg
-          curl --verbose --show-error --connect-timeout 15 --max-time 60 -fsSL YOUR_NEW_DATASTAX_GPG_KEY_URL | sudo gpg --verbose --dearmor -o /usr/share/keyrings/datastax-archive-keyring.gpg
-          # Verify the key file was created
-          sudo ls -l /usr/share/keyrings/datastax-archive-keyring.gpg
-          echo "Finished: Add DataStax GPG Key"
-
-      - name: Add DataStax APT Repository (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          echo "Starting: Add DataStax APT Repository"
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/datastax-archive-keyring.gpg] https://downloads.datastax.com/cpp-driver/ubuntu/$(lsb_release -sc) $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/datastax.sources.list > /dev/null
-          # Verify the repo file was created
-          sudo cat /etc/apt/sources.list.d/datastax.sources.list
-          echo "Finished: Add DataStax APT Repository"
-
-      - name: Update APT Cache for DataStax Repo (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          echo "Starting: Update APT Cache for DataStax Repo"
-          sudo apt-get update -vv # Increased verbosity
-          echo "Finished: Update APT Cache for DataStax Repo"
-
-      - name: Install Cassandra C++ Driver (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          echo "Starting: Install Cassandra C++ Driver"
-          sudo apt-get install -y --no-install-recommends libdatastax-cpp-driver-dev libuv1-dev libssl-dev pkg-config
-          echo "Finished: Install Cassandra C++ Driver"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          - name: Install PostgresSQL Client (macOS)
+            if: runner.os == 'macOS'
+            run: |
+              brew install libpq # Provides psql client
+              echo "/opt/homebrew/opt/libpq/bin" >> $GITHUB_PATH # For Apple Silicon
+              echo "/usr/local/opt/libpq/bin" >> $GITHUB_PATH # For Intel Macs
 
       - name: Install Cassandra C++ Driver (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew update # Ensure brew is updated
-          # Install the driver and its dependencies
-          brew install cassandra-cpp-driver libuv openssl pkg-config
+          echo "Installing Cassandra C++ Driver on macOS..."
+          brew update || echo "Brew update failed, continuing..." # Sometimes brew update can be flaky
+          brew install cassandra-cpp-driver libuv openssl pkg-config cmake
+          echo "Finished: Install Cassandra C++ Driver (macOS)"
 
-      - name: Set Build Environment Variables (Linux)
-        if: runner.os == 'Linux'
+      - name: Install and Start Cassandra (macOS)
+        if: runner.os == 'macOS'
         run: |
-          # Use crate-specific vars if you found them (replace VAR_NAME):
-          # echo "CASSANDRA_SYS_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
-          # echo "CASSANDRA_SYS_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "Installing Cassandra on macOS..."
+          brew install cassandra
+          # Ensure Java is correctly configured if brew cassandra requires it
+          # brew services start cassandra
+          # Starting with brew services can be tricky in non-interactive CI.
+          # Let's try running it directly in the background.
+          cassandra -f &
           
-          # ---- OR ---- Use general variables (adjust paths if needed for specific Linux distros)
-          echo "LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LIBRARY_PATH" >> $GITHUB_ENV
-          echo "CPATH=/usr/include:$CPATH" >> $GITHUB_ENV
-          echo "*** Linux ENV Vars Set ***" # Add for debugging
+          echo "Waiting for Cassandra to start..."
+          timeout=180 # 3 minutes timeout for macOS, can be slower
+          interval=10
+          elapsed=0
+          # On macOS, nodetool might not be immediately on PATH after brew install
+          # Try to find it if brew installed it in a standard location
+          NODETOOL_PATH=""
+          if [ -x "$(brew --prefix cassandra)/bin/nodetool" ]; then
+            NODETOOL_PATH="$(brew --prefix cassandra)/bin/nodetool"
+          elif [ -x "/opt/homebrew/bin/nodetool" ]; then # Apple Silicon default
+             NODETOOL_PATH="/opt/homebrew/bin/nodetool"
+          elif [ -x "/usr/local/bin/nodetool" ]; then # Intel Macs default
+             NODETOOL_PATH="/usr/local/bin/nodetool"
+          else
+            echo "nodetool not found in expected brew paths!"
+            # Attempt to use it directly, hoping it's in PATH
+            NODETOOL_PATH="nodetool"
+          fi
+          
+          while ! $NODETOOL_PATH status > /dev/null 2>&1; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "Cassandra did not start within $timeout seconds."
+              $NODETOOL_PATH status # Print status for debugging
+              exit 1
+            fi
+            echo "Cassandra not up yet, waiting ($elapsed/$timeout s)..."
+            sleep $interval
+            elapsed=$((elapsed + interval))
+          done
+          echo "Cassandra started successfully."
+          $NODETOOL_PATH status
 
       - name: Set Build Environment Variables (macOS)
         if: runner.os == 'macOS'
         run: |
-          # Use crate-specific vars if you found them (replace VAR_NAME):
-          # echo "CASSANDRA_SYS_LIB_DIR=$(brew --prefix)/lib" >> $GITHUB_ENV
-          # echo "CASSANDRA_SYS_INCLUDE_DIR=$(brew --prefix)/include" >> $GITHUB_ENV
-          
-          # ---- OR ---- Use general variables
-          echo "LIBRARY_PATH=$(brew --prefix)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
-          echo "CPATH=$(brew --prefix)/include:$CPATH" >> $GITHUB_ENV
-          echo "*** macOS ENV Vars Set ***" # Add for debugging
+          echo "Setting macOS build environment variables..."
+          echo "LIBRARY_PATH=$(brew --prefix)/lib:$(brew --prefix openssl)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+          echo "CPATH=$(brew --prefix)/include:$(brew --prefix openssl)/include:$CPATH" >> $GITHUB_ENV
+          # For OpenSSL, specifically for Homebrew installations
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=$(brew --prefix openssl)/lib" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)/include" >> $GITHUB_ENV
+          echo "*** macOS ENV Vars Set ***"
 
       - name: Build Project
         run: cargo build --verbose
