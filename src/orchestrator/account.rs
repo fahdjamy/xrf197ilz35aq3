@@ -3,7 +3,10 @@ use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType,
 use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
 use crate::storage::{save_account, save_block_chain, PreparedAppStatements};
-use crate::{create_activity, create_chain_stamp, rollback_db_transaction, DomainError};
+use crate::{
+    create_activity, create_chain_stamp, rollback_db_transaction, DomainError,
+    CREATE_NEW_USER_ACCOUNT,
+};
 use cassandra_cpp::Session;
 use sqlx::{PgConnection, PgPool};
 use std::str::FromStr;
@@ -86,7 +89,14 @@ pub async fn create_account(
 
     ///// 5. Create an activity to group create an account and wallet holding task
 
-    match create_activity(&mut *db_tx, block.id.clone(), chain_stamp.stamp.clone()).await? {
+    match create_activity(
+        &mut *db_tx,
+        block.id.clone(),
+        chain_stamp.stamp.clone(),
+        CREATE_NEW_USER_ACCOUNT.to_string(),
+    )
+    .await?
+    {
         Some(created_activity) => {
             log::info!("activity created: {:?}", created_activity);
         }

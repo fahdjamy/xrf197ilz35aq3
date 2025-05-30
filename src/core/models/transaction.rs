@@ -214,17 +214,19 @@ pub struct ActivityTransaction {
     pub id: String,
     pub block_id: String,
     pub chain_id: String,
+    pub description: String,
     pub timestamp: DateTime<Utc>,
     pub modification_time: DateTime<Utc>,
 }
 
 impl ActivityTransaction {
-    pub fn new(block_id: String, chain_id: String) -> Self {
+    pub fn new(block_id: String, chain_id: String, desc: String) -> Self {
         let now = Utc::now();
         ActivityTransaction {
             block_id,
             chain_id,
             timestamp: now,
+            description: desc,
             modification_time: now,
             id: generate_timebase_str_id(),
         }

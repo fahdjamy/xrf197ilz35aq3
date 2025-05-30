@@ -8,15 +8,12 @@
        cassandra-cpp likely depends on.
         1. As of the current build (`3.0.2`)
            check [cassandra-sys-rs](https://github.com/cassandra-rs/cassandra-sys-rs/tree/main) -> [build.rs](https://github.com/cassandra-rs/cassandra-sys-rs/blob/main/build.rs)
-        2. It is using CASSANDRA_SYS_LIB_PATH so
-        3. `export CASSANDRA_SYS_INCLUDE_DIR="$(brew --prefix)/include"`
-        4. `export CASSANDRA_SYS_LIB_DIR="$(brew --prefix)/lib"`
-    3. alternatively, sometimes Since the build.rs for cassandra-cpp-sys appears to primarily use pkg-config and doesn't
-       offer obvious specific CASSANDRA_*
-        1. `export CPATH="$(brew --prefix)/include:$CPATH"` To tell the linker where libcassandra.dylib is.
-        2. `export LIBRARY_PATH="$(brew --prefix)/lib:$LIBRARY_PATH"` To tell the C compiler (used by build.rs) where
-           headers are.
-    4. Set OpenSSL Variables: Because the build script does check for these.
+        2. It is using CASSANDRA_SYS_LIB_PATH so export the following.
+            1. `export CPATH="$(brew --prefix)/include:$CPATH"` To tell the linker where libcassandra.dylib is.
+            2. `export LIBRARY_PATH="$(brew --prefix)/lib:$LIBRARY_PATH"` To tell the C compiler (used by build.rs)
+               where
+               headers are.
+    3. Set OpenSSL Variables: Because the build script does check for these.
         1. `export OPENSSL_ROOT_DIR="$(brew --prefix openssl)"`
         2. `export OPENSSL_LIB_DIR="$(brew --prefix openssl)/lib"`
         3. `export OPENSSL_INCLUDE_DIR="$(brew --prefix openssl)/include"`

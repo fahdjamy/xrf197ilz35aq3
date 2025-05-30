@@ -11,22 +11,24 @@ pub async fn save_activity<'a, E>(
 where
     E: Executor<'a, Database = Postgres>,
 {
-    info!("creating activity  :: transaction={}", activity);
+    info!("creating activity  :: activity={}", activity);
     let result = sqlx::query!(
         "
-INSERT INTO activity_transaction (
+INSERT INTO activity (
             transaction_id,
             timestamp,
             modification_time,
             block_id,
-            chain_id
+            chain_id,
+            description
             )
-            VALUES ($1, $2, $3, $4, $5)",
+            VALUES ($1, $2, $3, $4, $5, $6)",
         activity.id,
         activity.timestamp,
         activity.modification_time,
         activity.block_id,
-        activity.chain_id
+        activity.chain_id,
+        activity.description,
     )
     .execute(pool)
     .await?;
