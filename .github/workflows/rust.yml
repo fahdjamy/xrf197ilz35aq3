@@ -1,6 +1,10 @@
 name: Rust
 
-on: [ workflow_dispatch ] # Allows manual triggering
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
 
 jobs:
   test_service_on_macos:
