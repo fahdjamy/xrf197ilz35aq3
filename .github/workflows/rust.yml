@@ -7,8 +7,8 @@ on:
     branches: [ "master" ]
 
 jobs:
-  test_service_on_macos:
-    runs-on: macos-latest
+  test_service_on_macos_specific_version:
+    runs-on: macos-13 # Changed from macos-latest
     services:
       postgres:
         image: postgres:15
@@ -24,19 +24,18 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - name: Service Should Be Initializing
-        run: echo "Job started, PostgreSQL service should have attempted to initialize."
+      - name: Checkout Code (Placeholder)
+        uses: actions/checkout@v4
 
-      - name: Wait and Check Port
+      - name: Confirm Service Initialization
         run: |
-          echo "Waiting 30s for service to be fully up..."
-          sleep 30 
-          echo "Checking if PostgreSQL port is accessible on localhost..."
+          echo "Job has started on macos-13. If Docker was not found for services, this step might not even run or the job would have failed earlier."
+          echo "Waiting a few seconds for service health checks..."
+          sleep 30
+          echo "Attempting to see if PostgreSQL port is available (implies service started)..."
           if nc -z localhost 5432; then
             echo "SUCCESS: PostgreSQL is listening on localhost:5432"
           else
-            echo "FAILURE: PostgreSQL NOT listening on localhost:5432"
-            # If it failed because docker wasn't found, this step might not even be reached
-            # or the service wouldn't be running.
+            echo "FAILURE: PostgreSQL NOT listening on localhost:5432. Service might not have started."
             exit 1
           fi
