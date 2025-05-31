@@ -8,10 +8,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # PostgreSQL Env Vars
+  # PostgresSQL Env Vars
+  POSTGRES_DB: test_db
   POSTGRES_USER: runner
   POSTGRES_PASSWORD: password
-  POSTGRES_DB: test_db
   DATABASE_URL: postgresql://runner:password@localhost:5432/test_db
 
 jobs:
@@ -41,36 +41,73 @@ jobs:
           toolchain: stable # Or your specific toolchain version
           profile: minimal
 
-      # --- PostgresSQL Client Setup (macOS) ---
-      - name: Install PostgresSQL Client (macOS)
-        if: runner.os == 'macOS' # Keep conditional for macOS-specific steps
+      # --- PostgreSQL Setup via Homebrew (macOS) ---
+      - name: Install and Start PostgresSQL (macOS via Homebrew)
+        if: runner.os == 'macOS'
         run: |
-          brew install libpq
-          # Add libpq binaries to PATH for Apple Silicon and Intel Macs
-          if [ -d "/opt/homebrew/opt/libpq/bin" ]; then
-            echo "/opt/homebrew/opt/libpq/bin" >> $GITHUB_PATH
-          fi
-          if [ -d "/usr/local/opt/libpq/bin" ]; then
-            echo "/usr/local/opt/libpq/bin" >> $GITHUB_PATH
-          fi
+          echo "Setting up PostgreSQL on macOS using Homebrew..."
+          brew install postgresql@15 # Using PostgreSQL 15 as an example
+          
+          echo "Starting PostgreSQL service via Homebrew..."
+          brew services start postgresql@15
+          
+          echo "Waiting for Homebrew PostgreSQL to initialize and start..."
+          # It can take a little while for the service to be fully up after starting.
+          sleep 15 # Initial wait
+          
+          # Create the database and user if they don't exist.
+          # Homebrew's PostgreSQL often allows connections from the current user (runner) by default.
+          # The default superuser for PostgreSQL after Homebrew install is typically your macOS username (e.g., 'runner' on GH Actions).
+          echo "Creating database '${{ env.POSTGRES_DB }}' and user '${{ env.POSTGRES_USER }}'..."
+          createdb -h localhost -p 5432 -U $(whoami) ${{ env.POSTGRES_DB }} || echo "Database '${{ env.POSTGRES_DB }}' may already exist or 'createdb' command failed (user $(whoami)). Trying with 'postgres' user..."
+          # Fallback if current user can't create, try with 'postgres' user if it exists and is accessible
+          psql -h localhost -p 5432 -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${{ env.POSTGRES_DB }}'" | grep -q 1 || psql -h localhost -p 5432 -U postgres -c "CREATE DATABASE ${{ env.POSTGRES_DB }};" || echo "Failed to create database with user 'postgres' as well."
+          
+          # Attempt to create user. If it fails, it might already exist or permissions issue.
+          psql -h localhost -p 5432 -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '${{ env.POSTGRES_USER }}'" | grep -q 1 || psql -h localhost -p 5432 -U postgres -c "CREATE USER ${{ env.POSTGRES_USER }} WITH PASSWORD '${{ env.POSTGRES_PASSWORD }}' SUPERUSER;" || echo "User '${{ env.POSTGRES_USER }}' may already exist or creation failed. Continuing..."
+          # Grant privileges if user was just created or already exists
+          psql -h localhost -p 5432 -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE ${{ env.POSTGRES_DB }} TO ${{ env.POSTGRES_USER }};" || echo "Grant privileges failed. Check user/db existence and permissions."
+          
+          
+          echo "Verifying PostgreSQL readiness..."
+          timeout=120 # 2 minutes
+          interval=5  # check every 5 seconds
+          elapsed=0
+          
+          # Use the environment variables for the pg_isready check
+          PG_ISREADY_CMD="pg_isready -h localhost -p 5432 -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -q"
+          
+          while ! $PG_ISREADY_CMD; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "Homebrew PostgreSQL did not become accessible with user/db within $timeout seconds."
+              echo "Command used for check: $PG_ISREADY_CMD"
+              # Print logs if available
+              echo "PostgreSQL logs (if accessible via brew log path):"
+              # Common log paths for Homebrew PostgreSQL
+              if [ -d "$(brew --prefix)/var/log" ]; then ls -la $(brew --prefix)/var/log; cat $(brew --prefix)/var/log/postgres.log || echo "Could not cat main log."; fi
+              if [ -d "$(brew --prefix)/var/postgresql@15" ]; then cat $(brew --prefix)/var/postgresql@15.log || echo "Could not cat versioned log."; fi
+              exit 1
+            fi
+            echo "Homebrew PostgreSQL not ready yet (checking with: $PG_ISREADY_CMD), waiting ($elapsed/$timeout s)..."
+            sleep $interval
+            elapsed=$((elapsed + interval))
+          done
+          echo "Homebrew PostgreSQL started and accessible with specified user/db."
 
       # --- Cassandra Setup (macOS) ---
       - name: Install and Start Cassandra (macOS)
-        if: runner.os == 'macOS' # Keep conditional for macOS-specific steps
+        if: runner.os == 'macOS'
         run: |
           echo "Installing Cassandra on macOS..."
           brew install cassandra
           
-          # Attempt to configure JAVA_HOME if not set, as Cassandra needs it.
-          # Homebrew often installs OpenJDK as a dependency.
           if [ -z "$JAVA_HOME" ]; then
             echo "JAVA_HOME not set. Attempting to find Homebrew OpenJDK..."
-            # Common paths for Homebrew OpenJDK
-            if [ -d "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then # Apple Silicon
+            if [ -d "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then
               export JAVA_HOME="/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
-            elif [ -d "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then # Intel
+            elif [ -d "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then
               export JAVA_HOME="/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
-            elif [ -x "/usr/libexec/java_home" ]; then # macOS provided utility
+            elif [ -x "/usr/libexec/java_home" ]; then
                export JAVA_HOME=$(/usr/libexec/java_home)
             else
               echo "WARNING: Could not automatically determine JAVA_HOME. Cassandra might fail to start."
@@ -87,28 +124,27 @@ jobs:
           cassandra -f &
           
           echo "Waiting for Cassandra to start..."
-          timeout=240 # Increased timeout for Cassandra on macOS
+          timeout=240
           interval=15
           elapsed=0
           
           NODETOOL_PATH=""
-          # Try to find nodetool, preferring brew's cassandra installation path
           if [ -x "$(brew --prefix cassandra)/bin/nodetool" ]; then
             NODETOOL_PATH="$(brew --prefix cassandra)/bin/nodetool"
-          elif [ -x "/opt/homebrew/bin/nodetool" ]; then # Apple Silicon default for some tools
+          elif [ -x "/opt/homebrew/bin/nodetool" ]; then
              NODETOOL_PATH="/opt/homebrew/bin/nodetool"
-          elif [ -x "/usr/local/bin/nodetool" ]; then # Intel Macs default for some tools
+          elif [ -x "/usr/local/bin/nodetool" ]; then
              NODETOOL_PATH="/usr/local/bin/nodetool"
           else
-            echo "nodetool not found in common brew paths! Attempting to use 'nodetool' directly."
-            NODETOOL_PATH="nodetool" # Hope it's in PATH
+            echo "nodetool not found in common brew paths! Attempting 'nodetool' directly."
+            NODETOOL_PATH="nodetool"
           fi
           echo "Using nodetool path: $NODETOOL_PATH"
           
           while ! $NODETOOL_PATH status > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
               echo "Cassandra did not start within $timeout seconds."
-              $NODETOOL_PATH status # Print status for debugging
+              $NODETOOL_PATH status
               exit 1
             fi
             echo "Cassandra not up yet, waiting ($elapsed/$timeout s)..."
@@ -120,45 +156,35 @@ jobs:
 
       # --- Cassandra C++ Driver Installation (macOS) ---
       - name: Install Cassandra C++ Driver (macOS)
-        if: runner.os == 'macOS' # Keep conditional for macOS-specific steps
+        if: runner.os == 'macOS'
         run: |
           echo "Installing Cassandra C++ Driver on macOS..."
-          # Ensure brew is updated, but don't fail the job if update itself has issues
           brew update || echo "Brew update potentially failed, attempting to continue..."
-          # Install driver and its dependencies (cmake is often needed for build scripts)
           brew install cassandra-cpp-driver libuv openssl pkg-config cmake
           echo "Finished: Install Cassandra C++ Driver (macOS)"
 
       # --- Set Environment Variables for Rust Build (macOS) ---
       - name: Set Build Environment Variables (macOS)
-        if: runner.os == 'macOS' # Keep conditional for macOS-specific steps
+        if: runner.os == 'macOS'
         run: |
           echo "Setting macOS build environment variables..."
-          # Add Homebrew's lib and include paths for general libraries
-          echo "LIBRARY_PATH=$(brew --prefix)/lib:$LIBRARY_PATH" >> $GITHUB_ENV
-          echo "CPATH=$(brew --prefix)/include:$CPATH" >> $GITHUB_ENV
-          
-          # Specifically for OpenSSL, as Rust crates often look for these
           OPENSSL_PREFIX=$(brew --prefix openssl)
+          
+          # Prepend Homebrew paths and OpenSSL specific paths
+          echo "LIBRARY_PATH=$(brew --prefix)/lib:$OPENSSL_PREFIX/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" >> $GITHUB_ENV
+          echo "CPATH=$(brew --prefix)/include:$OPENSSL_PREFIX/include${CPATH:+:$CPATH}" >> $GITHUB_ENV
+          
           echo "OPENSSL_ROOT_DIR=$OPENSSL_PREFIX" >> $GITHUB_ENV
           echo "OPENSSL_LIB_DIR=$OPENSSL_PREFIX/lib" >> $GITHUB_ENV
           echo "OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include" >> $GITHUB_ENV
-          
-          # Append OpenSSL paths to general LIBRARY_PATH and CPATH as well for broader compatibility
-          # Note: Appending to existing $LIBRARY_PATH and $CPATH ensures we don't overwrite them if they were set by previous steps or system defaults.
-          # However, for GITHUB_ENV, it's often better to construct the full desired path.
-          # Let's ensure brew paths are prepended to give them priority.
-          echo "LIBRARY_PATH=$(brew --prefix)/lib:$(brew --prefix openssl)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" >> $GITHUB_ENV
-          echo "CPATH=$(brew --prefix)/include:$(brew --prefix openssl)/include${CPATH:+:$CPATH}" >> $GITHUB_ENV
+          echo "*** macOS ENV Vars Set ***"
           echo "*** macOS ENV Vars Set ***"
 
       # --- Debug Docker (Should not be needed if services block is working) ---
       - name: Check for Docker on macOS (Debug)
-        if: runner.os == 'macOS' # Keep conditional for macOS-specific steps
+        if: runner.os == 'macOS'
         run: |
           echo "--- Checking for Docker (Debug Step) ---"
-          echo "User: $(whoami)"
-          echo "PATH: $PATH"
           which docker || echo "docker not found by 'which'"
           docker --version || echo "docker --version failed"
           echo "--- Docker Check Complete (Debug Step) ---"
