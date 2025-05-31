@@ -77,14 +77,14 @@ jobs:
 
           # The user running the script (runner on GitHub Actions) should be the default superuser
           # after Homebrew initializes the PostgreSQL cluster.
-          PSQL_ADMIN_USER=$(whoami)
+          PSQL_ADMIN_USER=$(whoami) # This will be 'runner'
           DB_NAME="${{ env.POSTGRES_DB }}"
           APP_USER="${{ env.POSTGRES_USER }}"
           APP_PASSWORD="${{ env.POSTGRES_PASSWORD }}"
 
           echo "Attempting to create database '$DB_NAME' using admin user '$PSQL_ADMIN_USER'..."
-          # Check if database exists first
-          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+          # Check if database exists first using the 'postgres' database for the connection
+          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
             echo "Database '$DB_NAME' already exists."
           else
             echo "Database '$DB_NAME' does not exist. Creating..."
@@ -99,18 +99,18 @@ jobs:
             echo "Database '$DB_NAME' created successfully."
           fi
 
-          echo "Attempting to create or update user '$APP_USER' using admin user '$PSQL_ADMIN_USER'..."
-          # Check if user exists
-          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -tc "SELECT 1 FROM pg_roles WHERE rolname = '$APP_USER'" | grep -q 1; then
+          echo "Attempting to create or update user '$APP_USER' using admin user '$PSQL_ADMIN_USER' (connecting to 'postgres' db)..."
+          # Check if user exists by connecting to the 'postgres' database
+          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '$APP_USER'" | grep -q 1; then
             echo "User '$APP_USER' already exists. Altering password and ensuring SUPERUSER attribute (for CI simplicity)."
-            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -c "ALTER USER \"$APP_USER\" WITH PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
+            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -c "ALTER USER \"$APP_USER\" WITH PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
               echo "ERROR: Failed to alter user '$APP_USER'."
               exit 1
             fi
             echo "User '$APP_USER' altered successfully."
           else
             echo "User '$APP_USER' does not exist. Creating with SUPERUSER attribute (for CI simplicity)..."
-            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -c "CREATE USER \"$APP_USER\" WITH LOGIN PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
+            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -c "CREATE USER \"$APP_USER\" WITH LOGIN PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
               echo "ERROR: Failed to create user '$APP_USER'."
               exit 1
             fi
@@ -118,9 +118,8 @@ jobs:
           fi
           
           # Grant all privileges on the specific database to the app user.
-          # This is technically redundant if the APP_USER is a SUPERUSER, but good for clarity.
-          echo "Granting ALL PRIVILEGES on database '$DB_NAME' to user '$APP_USER' (using admin '$PSQL_ADMIN_USER')..."
-          if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$APP_USER\";"; then
+          echo "Granting ALL PRIVILEGES on database '$DB_NAME' to user '$APP_USER' (using admin '$PSQL_ADMIN_USER', connecting to 'postgres' db)..."
+          if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$APP_USER\";"; then
               echo "ERROR: Failed to grant privileges to user '$APP_USER' on database '$DB_NAME'."
               # exit 1 # Not exiting here as superuser status might be sufficient
           else
@@ -142,8 +141,8 @@ jobs:
               if [ -d "$(brew --prefix)/var/log" ]; then ls -la $(brew --prefix)/var/log; cat $(brew --prefix)/var/log/postgres.log || echo "Could not cat main log."; fi
               if [ -d "$(brew --prefix)/var/postgresql@15" ]; then cat $(brew --prefix)/var/postgresql@15.log || echo "Could not cat versioned log."; fi
               # Check general server status as admin
-              echo "Checking general server status with admin user '$PSQL_ADMIN_USER':"
-              pg_isready -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -q || echo "Server also not ready for admin user '$PSQL_ADMIN_USER'."
+              echo "Checking general server status with admin user '$PSQL_ADMIN_USER' (connecting to 'postgres' db):"
+              pg_isready -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -q || echo "Server also not ready for admin user '$PSQL_ADMIN_USER'."
               exit 1
             fi
             echo "Homebrew PostgreSQL not ready yet for $APP_USER@$DB_NAME (checking with: $PG_ISREADY_CMD), waiting ($elapsed/$timeout s)..."
