@@ -23,64 +23,7 @@ jobs:
 
     runs-on: ${{ matrix.os }} # Use the OS from the matrix
 
-    # Service container for PostgreSQL
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
-      - name: Install and Start PostgresSQL via Homebrew (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          echo "Setting up PostgreSQL on macOS using Homebrew..."
-          brew install postgresql@15 # Or your desired PostgreSQL version
-          brew services start postgresql@15
-          
-          echo "Waiting for Homebrew PostgreSQL to start..."
-          # Add a robust wait loop for PostgreSQL to be ready
-          timeout=120 # 2 minutes
-          interval=5  # check every 5 seconds
-          elapsed=0
-          # Ensure pg_isready is in PATH. brew install postgresql usually adds it.
-          # For DATABASE_URL: postgresql://runner:password@localhost:5432/test_db
-          # pg_isready uses PGPASSWORD if set, or might try to connect without password
-          # Ensure your postgresql setup allows connection for the 'runner' user or the default user.
-          # For Homebrew, the default user is often your macOS username.
-          # You might need to create the user/db if brew doesn't do it as per your env vars.
-          # For simplicity, this health check just checks if the server is accepting connections.
-          # You may need to run `createdb test_db` and `createuser --superuser runner` or similar
-          # after brew services start postgresql if your tests require specific user/db.
-          # The DATABASE_URL implies user 'runner' and db 'test_db'.
-          # Create the database if it doesn't exist after starting
-          psql -U postgres -c "CREATE DATABASE ${{ env.POSTGRES_DB }} ENCODING 'UTF8' TEMPLATE template0;" || echo "Database ${{ env.POSTGRES_DB }} may already exist or creation failed"
-          psql -U postgres -c "CREATE USER ${{ env.POSTGRES_USER }} WITH PASSWORD '${{ env.POSTGRES_PASSWORD }}' SUPERUSER;" || echo "User ${{ env.POSTGRES_USER }} may already exist or creation failed"
-          
-          
-          PG_ISREADY_CMD="pg_isready -h localhost -p 5432 -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -q"
-          
-          while ! $PG_ISREADY_CMD; do
-            if [ $elapsed -ge $timeout ]; then
-              echo "Homebrew PostgreSQL did not start or is not accessible with user/db within $timeout seconds."
-              echo "Command used: $PG_ISREADY_CMD"
-              exit 1
-            fi
-            echo "Homebrew PostgreSQL not up yet, waiting ($elapsed/$timeout s)..."
-            sleep $interval
-            elapsed=$((elapsed + interval))
-          done
-          echo "Homebrew PostgreSQL started and accessible."
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
