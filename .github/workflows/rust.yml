@@ -7,7 +7,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-  test_service_on_macos_specific_version:
+  test_service_on_macos_v_13:
     runs-on: macos-13 # Changed from macos-latest
     services:
       postgres:
