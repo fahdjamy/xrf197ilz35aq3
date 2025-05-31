@@ -41,7 +41,7 @@ jobs:
           toolchain: stable # Or your specific toolchain version
           profile: minimal
 
-      # --- PostgreSQL Setup via Homebrew (macOS) ---
+      # --- PostgresSQL Setup via Homebrew (macOS) ---
       - name: Install and Start PostgresSQL (macOS via Homebrew)
         if: runner.os == 'macOS'
         run: |
@@ -53,7 +53,7 @@ jobs:
           brew services start postgresql@15
           
           echo "Waiting for Homebrew PostgreSQL to initialize and start (increased wait)..."
-          sleep 15 # Increased initial wait for initdb and service startup
+          sleep 5 # Increased initial wait for initdb and service startup
 
           echo "Ensuring PostgreSQL client tools are on PATH..."
           PG_BIN_DIR=""
@@ -158,57 +158,100 @@ jobs:
           echo "Installing Cassandra on macOS..."
           brew install cassandra
           
+          echo "Configuring JAVA_HOME for Cassandra..."
+          # Ensure JAVA_HOME is set and exported for the cassandra script
           if [ -z "$JAVA_HOME" ]; then
-            echo "JAVA_HOME not set. Attempting to find Homebrew OpenJDK..."
-            if [ -d "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then
-              export JAVA_HOME="/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
-            elif [ -d "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then
-              export JAVA_HOME="/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
-            elif [ -x "/usr/libexec/java_home" ]; then
-               export JAVA_HOME=$(/usr/libexec/java_home)
+            CASSANDRA_JAVA_HOME=""
+            if [ -d "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then # Apple Silicon
+              CASSANDRA_JAVA_HOME="/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+            elif [ -d "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home" ]; then # Intel
+              CASSANDRA_JAVA_HOME="/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+            elif [ -x "/usr/libexec/java_home" ]; then # macOS provided utility
+               CASSANDRA_JAVA_HOME=$(/usr/libexec/java_home)
+            fi
+
+            if [ ! -z "$CASSANDRA_JAVA_HOME" ]; then
+                echo "Setting and exporting JAVA_HOME to $CASSANDRA_JAVA_HOME"
+                export JAVA_HOME="$CASSANDRA_JAVA_HOME" # Export for current script and sub-processes
+                echo "JAVA_HOME=$CASSANDRA_JAVA_HOME" >> $GITHUB_ENV # For subsequent steps
             else
               echo "WARNING: Could not automatically determine JAVA_HOME. Cassandra might fail to start."
             fi
-            if [ ! -z "$JAVA_HOME" ]; then
-                echo "Setting JAVA_HOME to $JAVA_HOME"
-                echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
-            fi
           else
-            echo "JAVA_HOME is already set to: $JAVA_HOME"
+            echo "JAVA_HOME is already set to: $JAVA_HOME. Ensuring it's exported."
+            export JAVA_HOME="$JAVA_HOME" # Ensure it's exported if set by a previous step/env
           fi
           
           echo "Starting Cassandra in the background..."
-          cassandra -f &
+          # The -f flag runs it in the foreground, but & backgrounds the shell command.
+          # The -R flag prevents Cassandra from running as root if sudo was somehow involved (not typical here).
+          cassandra -R -f &
+          CASSANDRA_PID=$! # Get PID of the backgrounded Cassandra process
           
-          echo "Waiting for Cassandra to start..."
-          timeout=240
+          echo "Cassandra process started with PID $CASSANDRA_PID. Waiting 45 seconds for initial Cassandra bootstrap..."
+          sleep 20 # Increased initial wait time for Cassandra to bootstrap
+
+          echo "Checking if Cassandra process $CASSANDRA_PID is still running..."
+          if ! ps -p $CASSANDRA_PID > /dev/null; then
+            echo "ERROR: Cassandra process $CASSANDRA_PID is not running after startup attempt."
+            echo "Attempting to print Cassandra logs (if they exist):"
+            CASSANDRA_LOG_DIR="$(brew --prefix)/var/log/cassandra"
+            if [ -d "$CASSANDRA_LOG_DIR" ]; then
+              echo "Contents of $CASSANDRA_LOG_DIR:"
+              ls -la "$CASSANDRA_LOG_DIR"
+              echo "--- system.log ---"
+              cat "$CASSANDRA_LOG_DIR/system.log" || echo "Could not cat system.log"
+              echo "--- debug.log ---"
+              cat "$CASSANDRA_LOG_DIR/debug.log" || echo "Could not cat debug.log"
+            else
+              echo "Cassandra log directory $CASSANDRA_LOG_DIR not found."
+            fi
+            exit 1
+          fi
+          echo "Cassandra process $CASSANDRA_PID is running. Proceeding to nodetool check."
+          
+          echo "Waiting for Cassandra to become fully operational..."
+          timeout=240 # Total timeout for nodetool status
           interval=15
           elapsed=0
           
           NODETOOL_PATH=""
           if [ -x "$(brew --prefix cassandra)/bin/nodetool" ]; then
             NODETOOL_PATH="$(brew --prefix cassandra)/bin/nodetool"
-          elif [ -x "/opt/homebrew/bin/nodetool" ]; then
+          elif [ -x "/opt/homebrew/bin/nodetool" ]; then # Common path for tools on Apple Silicon
              NODETOOL_PATH="/opt/homebrew/bin/nodetool"
-          elif [ -x "/usr/local/bin/nodetool" ]; then
+          elif [ -x "/usr/local/bin/nodetool" ]; then # Common path for tools on Intel Macs
              NODETOOL_PATH="/usr/local/bin/nodetool"
           else
-            echo "nodetool not found in common brew paths! Attempting 'nodetool' directly."
-            NODETOOL_PATH="nodetool"
+            echo "nodetool not found in common brew paths! Attempting 'nodetool' directly (might require PATH setup)."
+            NODETOOL_PATH="nodetool" # Hope it's in PATH
           fi
           echo "Using nodetool path: $NODETOOL_PATH"
-          
+
           while ! $NODETOOL_PATH status > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
-              echo "Cassandra did not start within $timeout seconds."
-              $NODETOOL_PATH status
+              echo "Cassandra did not become operational (nodetool status failed) within $timeout seconds."
+              echo "Final nodetool status output:"
+              $NODETOOL_PATH status || echo "nodetool status command also failed to execute."
+              echo "Attempting to print Cassandra logs:"
+              CASSANDRA_LOG_DIR="$(brew --prefix)/var/log/cassandra"
+              if [ -d "$CASSANDRA_LOG_DIR" ]; then
+                echo "Contents of $CASSANDRA_LOG_DIR:"
+                ls -la "$CASSANDRA_LOG_DIR"
+                echo "--- system.log (last 50 lines) ---"
+                tail -n 50 "$CASSANDRA_LOG_DIR/system.log" || echo "Could not tail system.log"
+                echo "--- debug.log (last 50 lines) ---"
+                tail -n 50 "$CASSANDRA_LOG_DIR/debug.log" || echo "Could not tail debug.log"
+              else
+                echo "Cassandra log directory $CASSANDRA_LOG_DIR not found."
+              fi
               exit 1
             fi
-            echo "Cassandra not up yet, waiting ($elapsed/$timeout s)..."
+            echo "Cassandra not up yet (nodetool status), waiting ($elapsed/$timeout s)..."
             sleep $interval
             elapsed=$((elapsed + interval))
           done
-          echo "Cassandra started successfully."
+          echo "Cassandra started successfully and nodetool status is OK."
           $NODETOOL_PATH status
 
       # --- Cassandra C++ Driver Installation (macOS) ---
