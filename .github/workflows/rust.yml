@@ -49,50 +49,108 @@ jobs:
           brew install postgresql@15 # Using PostgreSQL 15 as an example
           
           echo "Starting PostgreSQL service via Homebrew..."
+          # This command also handles initdb if it's the first time.
           brew services start postgresql@15
           
-          echo "Waiting for Homebrew PostgreSQL to initialize and start..."
-          # It can take a little while for the service to be fully up after starting.
-          sleep 15 # Initial wait
+          echo "Waiting for Homebrew PostgreSQL to initialize and start (increased wait)..."
+          sleep 15 # Increased initial wait for initdb and service startup
+
+          echo "Ensuring PostgreSQL client tools are on PATH..."
+          PG_BIN_DIR=""
+          # Check common Homebrew paths for PostgreSQL binaries
+          if [ -d "/opt/homebrew/opt/postgresql@15/bin" ]; then # Apple Silicon
+            PG_BIN_DIR="/opt/homebrew/opt/postgresql@15/bin"
+          elif [ -d "/usr/local/opt/postgresql@15/bin" ]; then # Intel
+            PG_BIN_DIR="/usr/local/opt/postgresql@15/bin"
+          fi
+
+          if [ ! -z "$PG_BIN_DIR" ] && [[ ":$PATH:" != *":$PG_BIN_DIR:"* ]]; then
+            echo "Adding $PG_BIN_DIR to GITHUB_PATH and current PATH"
+            echo "$PG_BIN_DIR" >> $GITHUB_PATH
+            export PATH="$PG_BIN_DIR:$PATH" # Also for current script execution
+          fi
           
-          # Create the database and user if they don't exist.
-          # Homebrew's PostgreSQL often allows connections from the current user (runner) by default.
-          # The default superuser for PostgreSQL after Homebrew install is typically your macOS username (e.g., 'runner' on GH Actions).
-          echo "Creating database '${{ env.POSTGRES_DB }}' and user '${{ env.POSTGRES_USER }}'..."
-          createdb -h localhost -p 5432 -U $(whoami) ${{ env.POSTGRES_DB }} || echo "Database '${{ env.POSTGRES_DB }}' may already exist or 'createdb' command failed (user $(whoami)). Trying with 'postgres' user..."
-          # Fallback if current user can't create, try with 'postgres' user if it exists and is accessible
-          psql -h localhost -p 5432 -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = '${{ env.POSTGRES_DB }}'" | grep -q 1 || psql -h localhost -p 5432 -U postgres -c "CREATE DATABASE ${{ env.POSTGRES_DB }};" || echo "Failed to create database with user 'postgres' as well."
+          # Verify client tools are found
+          which psql || (echo "ERROR: psql not found in PATH! Current PATH: $PATH" && exit 1)
+          which createdb || (echo "ERROR: createdb not found in PATH!" && exit 1)
+          which pg_isready || (echo "ERROR: pg_isready not found in PATH!" && exit 1)
+
+          # The user running the script (runner on GitHub Actions) should be the default superuser
+          # after Homebrew initializes the PostgreSQL cluster.
+          PSQL_ADMIN_USER=$(whoami)
+          DB_NAME="${{ env.POSTGRES_DB }}"
+          APP_USER="${{ env.POSTGRES_USER }}"
+          APP_PASSWORD="${{ env.POSTGRES_PASSWORD }}"
+
+          echo "Attempting to create database '$DB_NAME' using admin user '$PSQL_ADMIN_USER'..."
+          # Check if database exists first
+          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+            echo "Database '$DB_NAME' already exists."
+          else
+            echo "Database '$DB_NAME' does not exist. Creating..."
+            if ! createdb -h localhost -p 5432 -U "$PSQL_ADMIN_USER" "$DB_NAME"; then
+              echo "ERROR: Failed to create database '$DB_NAME' with user '$PSQL_ADMIN_USER'."
+              # Attempt to print PostgreSQL server logs for more clues
+              echo "Attempting to print PostgreSQL logs..."
+              if [ -d "$(brew --prefix)/var/log" ]; then cat $(brew --prefix)/var/log/postgres.log || echo "Could not cat main log."; fi
+              if [ -d "$(brew --prefix)/var/postgresql@15" ]; then cat $(brew --prefix)/var/postgresql@15.log || echo "Could not cat versioned log."; fi
+              exit 1
+            fi
+            echo "Database '$DB_NAME' created successfully."
+          fi
+
+          echo "Attempting to create or update user '$APP_USER' using admin user '$PSQL_ADMIN_USER'..."
+          # Check if user exists
+          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -tc "SELECT 1 FROM pg_roles WHERE rolname = '$APP_USER'" | grep -q 1; then
+            echo "User '$APP_USER' already exists. Altering password and ensuring SUPERUSER attribute (for CI simplicity)."
+            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -c "ALTER USER \"$APP_USER\" WITH PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
+              echo "ERROR: Failed to alter user '$APP_USER'."
+              exit 1
+            fi
+            echo "User '$APP_USER' altered successfully."
+          else
+            echo "User '$APP_USER' does not exist. Creating with SUPERUSER attribute (for CI simplicity)..."
+            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -c "CREATE USER \"$APP_USER\" WITH LOGIN PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
+              echo "ERROR: Failed to create user '$APP_USER'."
+              exit 1
+            fi
+            echo "User '$APP_USER' created successfully."
+          fi
           
-          # Attempt to create user. If it fails, it might already exist or permissions issue.
-          psql -h localhost -p 5432 -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '${{ env.POSTGRES_USER }}'" | grep -q 1 || psql -h localhost -p 5432 -U postgres -c "CREATE USER ${{ env.POSTGRES_USER }} WITH PASSWORD '${{ env.POSTGRES_PASSWORD }}' SUPERUSER;" || echo "User '${{ env.POSTGRES_USER }}' may already exist or creation failed. Continuing..."
-          # Grant privileges if user was just created or already exists
-          psql -h localhost -p 5432 -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE ${{ env.POSTGRES_DB }} TO ${{ env.POSTGRES_USER }};" || echo "Grant privileges failed. Check user/db existence and permissions."
-          
-          
-          echo "Verifying PostgreSQL readiness..."
+          # Grant all privileges on the specific database to the app user.
+          # This is technically redundant if the APP_USER is a SUPERUSER, but good for clarity.
+          echo "Granting ALL PRIVILEGES on database '$DB_NAME' to user '$APP_USER' (using admin '$PSQL_ADMIN_USER')..."
+          if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$APP_USER\";"; then
+              echo "ERROR: Failed to grant privileges to user '$APP_USER' on database '$DB_NAME'."
+              # exit 1 # Not exiting here as superuser status might be sufficient
+          else
+              echo "Privileges granted successfully."
+          fi
+
+          echo "Verifying PostgreSQL readiness for user '$APP_USER' on database '$DB_NAME'..."
           timeout=120 # 2 minutes
           interval=5  # check every 5 seconds
           elapsed=0
           
-          # Use the environment variables for the pg_isready check
-          PG_ISREADY_CMD="pg_isready -h localhost -p 5432 -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -q"
+          PG_ISREADY_CMD="pg_isready -h localhost -p 5432 -U \"$APP_USER\" -d \"$DB_NAME\" -q"
           
           while ! $PG_ISREADY_CMD; do
             if [ $elapsed -ge $timeout ]; then
-              echo "Homebrew PostgreSQL did not become accessible with user/db within $timeout seconds."
+              echo "Homebrew PostgreSQL did not become accessible with user '$APP_USER'/db '$DB_NAME' within $timeout seconds."
               echo "Command used for check: $PG_ISREADY_CMD"
-              # Print logs if available
               echo "PostgreSQL logs (if accessible via brew log path):"
-              # Common log paths for Homebrew PostgreSQL
               if [ -d "$(brew --prefix)/var/log" ]; then ls -la $(brew --prefix)/var/log; cat $(brew --prefix)/var/log/postgres.log || echo "Could not cat main log."; fi
               if [ -d "$(brew --prefix)/var/postgresql@15" ]; then cat $(brew --prefix)/var/postgresql@15.log || echo "Could not cat versioned log."; fi
+              # Check general server status as admin
+              echo "Checking general server status with admin user '$PSQL_ADMIN_USER':"
+              pg_isready -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -q || echo "Server also not ready for admin user '$PSQL_ADMIN_USER'."
               exit 1
             fi
-            echo "Homebrew PostgreSQL not ready yet (checking with: $PG_ISREADY_CMD), waiting ($elapsed/$timeout s)..."
+            echo "Homebrew PostgreSQL not ready yet for $APP_USER@$DB_NAME (checking with: $PG_ISREADY_CMD), waiting ($elapsed/$timeout s)..."
             sleep $interval
             elapsed=$((elapsed + interval))
           done
-          echo "Homebrew PostgreSQL started and accessible with specified user/db."
+          echo "Homebrew PostgreSQL started and accessible with user '$APP_USER' on database '$DB_NAME'."
 
       # --- Cassandra Setup (macOS) ---
       - name: Install and Start Cassandra (macOS)
