@@ -15,20 +15,22 @@ where
     let result = sqlx::query!(
         "
 INSERT INTO activity (
-            transaction_id,
-            timestamp,
-            modification_time,
+            user_fp,
             block_id,
             chain_id,
-            description
+            timestamp,
+            description,
+            transaction_id,
+            modification_time
             )
-            VALUES ($1, $2, $3, $4, $5, $6)",
-        activity.id,
-        activity.timestamp,
-        activity.modification_time,
+            VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        activity.user_fp,
         activity.block_id,
         activity.chain_id,
+        activity.timestamp,
         activity.description,
+        activity.id,
+        activity.modification_time,
     )
     .execute(pool)
     .await?;

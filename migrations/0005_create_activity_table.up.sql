@@ -1,6 +1,7 @@
 -- Add up a migration script here
 CREATE TABLE IF NOT EXISTS activity
 (
+    user_fp           VARCHAR(10)              NOT NULL,
     chain_id          VARCHAR(10)              NOT NULL,
     block_id          VARCHAR(10)              NOT NULL,
     description       TEXT                     NOT NULL,

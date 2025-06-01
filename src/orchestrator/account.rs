@@ -33,7 +33,7 @@ pub async fn create_account(
     })?;
 
     let new_acct =
-        if let Some(acct) = create_new_acct(&mut db_tx, &currency, &acct_type, user_ctx).await? {
+        if let Some(acct) = create_new_acct(&mut db_tx, &currency, &acct_type, &user_ctx).await? {
             acct
         } else {
             rollback_db_transaction(db_tx).await?;
@@ -94,6 +94,7 @@ pub async fn create_account(
         block.id.clone(),
         chain_stamp.stamp.clone(),
         CREATE_NEW_USER_ACCOUNT.to_string(),
+        &user_ctx,
     )
     .await?
     {
@@ -135,7 +136,7 @@ async fn create_new_acct(
     tx: &mut PgConnection,
     currency: &String,
     acct_type: &String,
-    user_ctx: UserContext,
+    user_ctx: &UserContext,
 ) -> Result<Option<Account>, OrchestrateError> {
     let curr = Currency::from_str(&currency)
         .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
@@ -144,7 +145,12 @@ async fn create_new_acct(
         .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
 
     ////// 1. create an account
-    let account = Account::new(user_ctx.user_fp, user_ctx.timezone, curr, acct_type);
+    let account = Account::new(
+        user_ctx.user_fp.clone(),
+        user_ctx.timezone.clone(),
+        curr,
+        acct_type,
+    );
 
     //////// 1.1 Save the new account to DB
     let acct_created = save_account(tx, &account).await?;

@@ -212,6 +212,7 @@ impl Display for MonetaryTransaction {
 #[derive(Debug, Clone, Serialize)]
 pub struct ActivityTransaction {
     pub id: String,
+    pub user_fp: String,
     pub block_id: String,
     pub chain_id: String,
     pub description: String,
@@ -220,9 +221,10 @@ pub struct ActivityTransaction {
 }
 
 impl ActivityTransaction {
-    pub fn new(block_id: String, chain_id: String, desc: String) -> Self {
+    pub fn new(block_id: String, chain_id: String, desc: String, user_fp: String) -> Self {
         let now = Utc::now();
         ActivityTransaction {
+            user_fp,
             block_id,
             chain_id,
             timestamp: now,
