@@ -298,14 +298,47 @@ jobs:
           echo "*** macOS ENV Vars Set ***"
           echo "*** macOS ENV Vars Set ***"
 
-      # --- Debug Docker (Should not be needed if services block is working) ---
-      - name: Check for Docker on macOS (Debug)
+      # --- Run SQL Migrations ---
+      - name: Run SQL Migrations (PostgresSQL)
         if: runner.os == 'macOS'
+        # This step assumes your migration tool uses the DATABASE_URL environment variable.
+        # It also assumes your migration tool (e.g., sqlx-cli, diesel_cli) is available.
+        # You might need to install it first if it's not part of your project's direct dependencies
+        # or not already on the runner.
+        # Example: If using sqlx-cli, and it's not installed globally, you might run:
+        # cargo install sqlx-cli --no-default-features --features native-tls,postgres
         run: |
-          echo "--- Checking for Docker (Debug Step) ---"
-          which docker || echo "docker not found by 'which'"
-          docker --version || echo "docker --version failed"
-          echo "--- Docker Check Complete (Debug Step) ---"
+          echo "Running PostgresSQL migrations..."
+          # Replace the command below with your actual migration command.
+          # Example for sqlx-cli (ensure sqlx-cli is installed or use 'cargo run --bin sqlx -- migrate run'):
+          # If sqlx-cli is a project tool: cargo run --bin sqlx-cli -- migrate run --source ./path/to/your/migrations
+          # If sqlx-cli is installed globally: sqlx migrate run --source ./path/to/your/migrations
+          # If using diesel_cli: diesel migration run
+          
+          # Placeholder - REPLACE THIS with your actual migration command:
+          echo "Attempting to run migrations with sqlx-cli (example)..."
+          # First, ensure sqlx-cli is installed if you are using it.
+          # This is one way to install it if not already available globally or as a project binary.
+          # Adjust features as needed for your project.
+          if ! command -v sqlx &> /dev/null
+          then
+              echo "sqlx-cli not found, attempting to install..."
+              cargo install sqlx-cli --no-default-features --features native-tls,postgres
+              # Verify installation
+              if ! command -v sqlx &> /dev/null
+              then
+                  echo "Failed to install sqlx-cli. Please ensure your migration tool is available."
+                  exit 1
+              fi
+          fi
+          
+          # Assuming your migrations are in a folder named 'migrations' at the root of your project:
+          # The DATABASE_URL environment variable is already set for the job.
+          sqlx migrate run --source ./migrations 
+          
+          echo "PostgresSQL migrations completed."
+          # If you also have Cassandra schema setup/migrations, add those commands here.
+          # Example: cqlsh -f ./path/to/cassandra_schema.cql || echo "Cassandra schema setup might have issues."
 
       # --- Build and Test ---
       - name: Build Project
