@@ -169,7 +169,7 @@ jobs:
             elif [ -x "/usr/libexec/java_home" ]; then # macOS provided utility
                CASSANDRA_JAVA_HOME=$(/usr/libexec/java_home)
             fi
-
+          
             if [ ! -z "$CASSANDRA_JAVA_HOME" ]; then
                 echo "Setting and exporting JAVA_HOME to $CASSANDRA_JAVA_HOME"
                 export JAVA_HOME="$CASSANDRA_JAVA_HOME" # Export for current script and sub-processes
@@ -189,8 +189,8 @@ jobs:
           CASSANDRA_PID=$! # Get PID of the backgrounded Cassandra process
           
           echo "Cassandra process started with PID $CASSANDRA_PID. Waiting 45 seconds for initial Cassandra bootstrap..."
-          sleep 20 # Increased initial wait time for Cassandra to bootstrap
-
+          sleep 45 # Increased initial wait time for Cassandra to bootstrap
+          
           echo "Checking if Cassandra process $CASSANDRA_PID is still running..."
           if ! ps -p $CASSANDRA_PID > /dev/null; then
             echo "ERROR: Cassandra process $CASSANDRA_PID is not running after startup attempt."
@@ -227,7 +227,7 @@ jobs:
             NODETOOL_PATH="nodetool" # Hope it's in PATH
           fi
           echo "Using nodetool path: $NODETOOL_PATH"
-
+          
           while ! $NODETOOL_PATH status > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
               echo "Cassandra did not become operational (nodetool status failed) within $timeout seconds."
