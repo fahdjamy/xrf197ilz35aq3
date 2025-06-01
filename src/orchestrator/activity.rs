@@ -1,7 +1,8 @@
 use crate::context::UserContext;
 use crate::core::ActivityTransaction;
 use crate::error::OrchestrateError;
-use crate::storage::save_activity;
+use crate::storage::{find_last_activity, save_activity};
+use crate::PgDatabaseError;
 use sqlx::{Executor, Postgres};
 
 pub async fn create_activity<'a, E>(
@@ -22,5 +23,21 @@ where
         Ok(Some(activity_tx))
     } else {
         Ok(None)
+    }
+}
+
+pub async fn find_last_user_activity<'a, E>(
+    pool: E,
+    user_fp: String,
+) -> Result<Option<ActivityTransaction>, OrchestrateError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    match find_last_activity(pool, &user_fp).await {
+        Ok(activity) => Ok(Some(activity)),
+        Err(err) => match err {
+            PgDatabaseError::NotFound => Ok(None),
+            _ => Err(OrchestrateError::DatabaseError(err)),
+        },
     }
 }
