@@ -194,8 +194,8 @@ jobs:
           cassandra -R -f &
           CASSANDRA_PID=$! 
           
-          echo "Cassandra process started with PID $CASSANDRA_PID. Waiting 45 seconds for initial Cassandra bootstrap..."
-          sleep 25
+          echo "Cassandra process started with PID $CASSANDRA_PID. Waiting 15 seconds for initial Cassandra bootstrap..."
+          sleep 15
           
           echo "Checking if Cassandra process $CASSANDRA_PID is still running..."
           if ! ps -p $CASSANDRA_PID > /dev/null; then
