@@ -1,6 +1,7 @@
 use crate::core::WalletHolding;
 use crate::error::OrchestrateError;
 use crate::storage::{create_wallet, fetch_wallet, update_wallet_balance};
+use crate::{commit_db_transaction, rollback_db_transaction, start_db_transaction};
 use chrono::Utc;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
@@ -80,7 +81,10 @@ pub async fn debit_wallet(
         ));
     };
 
-    let mut wallet_holding = match get_wallet_holding(pool, acct_id).await? {
+    let event = "debitWallet";
+    let mut db_tx = start_db_transaction(pool, event).await?;
+
+    let mut wallet_holding = match get_wallet_holding(&mut *db_tx, acct_id).await? {
         None => {
             return Err(OrchestrateError::NotFoundError(
                 "No wallet for account found".to_string(),
@@ -99,9 +103,12 @@ pub async fn debit_wallet(
     wallet_holding.last_entry_id = ledger_entry_id;
     wallet_holding.balance = wallet_holding.balance - amount;
 
-    let updated_wallet = update_wallet_balance(pool, &wallet_holding).await?;
+    let updated_wallet = update_wallet_balance(&mut *db_tx, &wallet_holding).await?;
     if updated_wallet.balance != wallet_holding.balance {
+        rollback_db_transaction(db_tx, event).await?;
         return Ok(false);
     }
+
+    commit_db_transaction(db_tx, event).await?;
     Ok(true)
 }

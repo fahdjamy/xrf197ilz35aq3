@@ -4,8 +4,8 @@ use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
 use crate::storage::{save_account, save_block_chain, PreparedAppStatements};
 use crate::{
-    create_activity, create_chain_stamp, rollback_db_transaction, DomainError,
-    CREATE_NEW_USER_ACCOUNT,
+    commit_db_transaction, create_activity, create_chain_stamp, rollback_db_transaction,
+    start_db_transaction, DomainError, CREATE_NEW_USER_ACCOUNT,
 };
 use cassandra_cpp::Session;
 use sqlx::{PgConnection, PgPool};
@@ -24,19 +24,14 @@ pub async fn create_account(
     let block_region = BlockRegion::from_str(&app_cxt.region)
         .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
 
-    let mut db_tx = pool.begin().await.map_err(|err| {
-        log::error!(
-            "failed to begin transaction for creating a new account: {}",
-            err
-        );
-        OrchestrateError::ServerError(err.to_string())
-    })?;
+    let event = "createAccount";
+    let mut db_tx = start_db_transaction(pool, event).await?;
 
     let new_acct =
         if let Some(acct) = create_new_acct(&mut db_tx, &currency, &acct_type, &user_ctx).await? {
             acct
         } else {
-            rollback_db_transaction(db_tx).await?;
+            rollback_db_transaction(db_tx, event).await?;
             return Err(OrchestrateError::ServerError(
                 "failed to create new account".to_string(),
             ));
@@ -59,7 +54,7 @@ pub async fn create_account(
     {
         wallet
     } else {
-        rollback_db_transaction(db_tx).await?;
+        rollback_db_transaction(db_tx, event).await?;
         return Err(OrchestrateError::ServerError(
             "failed to create wallet holding".to_string(),
         ));
@@ -102,7 +97,7 @@ pub async fn create_account(
             log::info!("activity created: {:?}", created_activity);
         }
         None => {
-            rollback_db_transaction(db_tx).await?;
+            rollback_db_transaction(db_tx, event).await?;
             return Err(OrchestrateError::ServerError(
                 "failed to create activity".to_string(),
             ));
@@ -118,12 +113,9 @@ pub async fn create_account(
         })?;
 
     if block_saved {
-        db_tx.commit().await.map_err(|err| {
-            log::error!("failed to commit transaction: {}", err);
-            OrchestrateError::ServerError(err.to_string())
-        })?;
+        commit_db_transaction(db_tx, event).await?;
     } else {
-        rollback_db_transaction(db_tx).await?;
+        rollback_db_transaction(db_tx, event).await?;
         return Err(OrchestrateError::ServerError(
             "failed to save block to DB".to_string(),
         ));
