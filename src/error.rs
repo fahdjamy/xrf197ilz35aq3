@@ -88,6 +88,8 @@ pub enum OrchestrateError {
     InvalidArgument(String),
     #[error("`{0}`")]
     DatabaseError(#[from] PgDatabaseError),
+    #[error("`{0}`")]
+    InvalidRecordState(String),
 }
 
 impl OrchestrateError {
@@ -103,6 +105,7 @@ impl OrchestrateError {
             },
             OrchestrateError::NotFoundError(_) => 404,
             OrchestrateError::InvalidArgument(_) => 400,
+            OrchestrateError::InvalidRecordState(_) => 400,
         }
     }
 }

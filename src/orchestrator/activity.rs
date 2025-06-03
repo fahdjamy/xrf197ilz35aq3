@@ -28,12 +28,12 @@ where
 
 pub async fn find_last_user_activity<'a, E>(
     pool: E,
-    user_fp: String,
+    user_fp: &str,
 ) -> Result<Option<ActivityTransaction>, OrchestrateError>
 where
     E: Executor<'a, Database = Postgres>,
 {
-    match find_last_activity(pool, &user_fp).await {
+    match find_last_activity(pool, user_fp).await {
         Ok(activity) => Ok(Some(activity)),
         Err(err) => match err {
             PgDatabaseError::NotFound => Ok(None),

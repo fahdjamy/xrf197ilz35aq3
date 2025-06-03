@@ -1,11 +1,10 @@
 use crate::core::WalletHolding;
 use crate::error::OrchestrateError;
 use crate::storage::{create_wallet, fetch_wallet, update_wallet_balance};
-use crate::{commit_db_transaction, rollback_db_transaction, start_db_transaction};
 use chrono::Utc;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
-use sqlx::{Executor, PgPool, Postgres};
+use sqlx::{Executor, PgConnection, PgPool, Postgres};
 
 pub async fn create_wallet_holding<'a, E>(
     pool: E,
@@ -70,7 +69,7 @@ pub async fn credit_wallet_holding(
 }
 
 pub async fn debit_wallet(
-    pool: &PgPool,
+    tx: &mut PgConnection,
     amount: Decimal,
     acct_id: String,
     ledger_entry_id: String,
@@ -81,10 +80,7 @@ pub async fn debit_wallet(
         ));
     };
 
-    let event = "debitWallet";
-    let mut db_tx = start_db_transaction(pool, event).await?;
-
-    let mut wallet_holding = match get_wallet_holding(&mut *db_tx, acct_id).await? {
+    let mut wallet_holding = match get_wallet_holding(&mut *tx, acct_id).await? {
         None => {
             return Err(OrchestrateError::NotFoundError(
                 "No wallet for account found".to_string(),
@@ -103,12 +99,6 @@ pub async fn debit_wallet(
     wallet_holding.last_entry_id = ledger_entry_id;
     wallet_holding.balance = wallet_holding.balance - amount;
 
-    let updated_wallet = update_wallet_balance(&mut *db_tx, &wallet_holding).await?;
-    if updated_wallet.balance != wallet_holding.balance {
-        rollback_db_transaction(db_tx, event).await?;
-        return Ok(false);
-    }
-
-    commit_db_transaction(db_tx, event).await?;
-    Ok(true)
+    let updated_wallet = update_wallet_balance(&mut *tx, &wallet_holding).await?;
+    Ok(updated_wallet.balance == wallet_holding.balance)
 }
