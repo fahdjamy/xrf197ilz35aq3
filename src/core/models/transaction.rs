@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{write, Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, sqlx::Type)]
 pub enum TransactionType {
     Payment,
     Transfer,
@@ -69,7 +69,7 @@ impl FromStr for TransactionType {
 /// ***!IMPORTANT***: _Once a Transaction is Completed, its associated LedgerEntry records should never be changed or deleted.
 /// Corrections should be made via new transactions (e.g., a Reversal or Correction transaction type)
 /// that create new offsetting LedgerEntry records. Enforce this through app logic & DB permissions_
-#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Eq, PartialEq, sqlx::Type, Deserialize)]
 pub enum TransactionStatus {
     Failed,
     Pending,
