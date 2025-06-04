@@ -3,17 +3,22 @@ use crate::DomainError;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum ChainStampVersion {
     V1,
 }
 
-impl From<&str> for ChainStampVersion {
-    fn from(value: &str) -> Self {
-        match value {
-            "v1" => ChainStampVersion::V1,
-            _ => ChainStampVersion::V1,
+impl FromStr for ChainStampVersion {
+    type Err = DomainError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "v1" => Ok(ChainStampVersion::V1),
+            _ => Err(DomainError::ParseError(
+                "failed to parse chain stamp version".to_string(),
+            )),
         }
     }
 }
