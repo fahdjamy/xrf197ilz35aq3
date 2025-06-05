@@ -121,15 +121,15 @@ pub struct MonetaryTransaction {
 }
 
 impl MonetaryTransaction {
-    pub fn payment(amount: Decimal, account_id: String, tx_type: TransactionType) -> Self {
+    pub fn payment(amount: Decimal, account_id: String) -> Self {
         MonetaryTransaction {
             amount,
             account_id,
             timestamp: Utc::now(),
-            transaction_type: tx_type,
             modification_date: Utc::now(),
             id: generate_timebase_str_id(),
             status: TransactionStatus::Pending,
+            transaction_type: TransactionType::Payment,
         }
     }
 

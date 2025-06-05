@@ -1,7 +1,7 @@
 use crate::core::chain_stamp::{ChainStamp, ChainStampVersion};
 use crate::PgDatabaseError;
 use chrono::{DateTime, Utc};
-use sqlx::{Executor, Postgres};
+use sqlx::{Executor, Postgres, Transaction};
 use std::str::FromStr;
 use tracing::{info, warn};
 
@@ -25,23 +25,23 @@ impl From<ChainStampDO> for ChainStamp {
         };
 
         ChainStamp {
-            root_stamp: None,
-            child_stamp: None,
             version: stamp_version,
             timestamp: value.timestamp,
             stamp: value.chain_stamp_id,
+            root_stamp: value.root_stamp,
+            child_stamp: value.child_stamp,
             modification_time: value.modification_time,
         }
     }
 }
 
-#[tracing::instrument(level = "debug", skip(pool, chain), name = "Create chain stamp")]
-pub async fn save_chain_stamp<'a, E>(pool: E, chain: &ChainStamp) -> Result<bool, PgDatabaseError>
-where
-    E: Executor<'a, Database = Postgres>,
-{
+#[tracing::instrument(level = "debug", skip(db_tx, chain), name = "Create chain stamp")]
+pub async fn save_chain_stamp(
+    db_tx: &mut Transaction<'_, Postgres>,
+    chain: &ChainStamp,
+) -> Result<bool, PgDatabaseError> {
     info!("saving chain stamp to DB :: acct={}", chain);
-    let result = sqlx::query!(
+    let query = sqlx::query!(
         "
     INSERT INTO chain_stamp
         (chain_stamp_id, timestamp, modification_time, version, root_stamp, child_stamp)
@@ -53,9 +53,9 @@ where
         &chain.version.to_string(),
         chain.root_stamp,
         chain.child_stamp
-    )
-    .execute(pool)
-    .await?;
+    );
+
+    let result = db_tx.execute(query).await?;
 
     Ok(result.rows_affected() == 1)
 }

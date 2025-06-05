@@ -8,7 +8,7 @@ mod wallet;
 
 pub use account::save_account;
 pub use activity::{find_last_activity, save_activity};
-pub use chain::save_chain_stamp;
+pub use chain::{find_chain_stamp_by_id, save_chain_stamp};
 pub use initialize::setup_postgres;
 pub use ledger::save_ledger;
 pub use transaction::save_monetary_tx;

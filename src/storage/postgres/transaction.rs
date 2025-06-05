@@ -5,7 +5,7 @@ use sqlx::{Executor, Postgres};
 #[tracing::instrument(skip(pool, transaction))]
 pub async fn save_monetary_tx<'a, E>(
     pool: E,
-    transaction: MonetaryTransaction,
+    transaction: &MonetaryTransaction,
 ) -> Result<bool, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
@@ -25,12 +25,12 @@ INSERT INTO monetary_transaction
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT(transaction_type) DO NOTHING
 ",
-        transaction.status as TransactionStatus,
+        transaction.status.clone() as TransactionStatus,
         transaction.amount,
         transaction.timestamp,
         transaction.account_id,
         transaction.id,
-        transaction.transaction_type as TransactionType,
+        transaction.transaction_type.clone() as TransactionType,
         transaction.modification_date,
     )
     .execute(pool)
