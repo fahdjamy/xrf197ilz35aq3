@@ -60,6 +60,28 @@ pub async fn save_chain_stamp(
     Ok(result.rows_affected() == 1)
 }
 
+#[tracing::instrument(level = "debug", skip(db_tx, child_cs_id), name = "Update chain stamp")]
+pub async fn add_child_cs_to_parent(
+    db_tx: &mut Transaction<'_, Postgres>,
+    parent_cs_id: &str,
+    child_cs_id: &str,
+) -> Result<bool, PgDatabaseError> {
+    let query = sqlx::query!(
+        "
+UPDATE chain_stamp
+SET child_stamp = $1,
+    modification_time = $2
+WHERE chain_stamp_id = $3
+",
+        child_cs_id,
+        Utc::now(),
+        parent_cs_id
+    );
+    let result = db_tx.execute(query).await?;
+
+    Ok(result.rows_affected() == 1)
+}
+
 #[tracing::instrument(level = "debug", skip(pool, chain_id), name = "Find chain stamp by id")]
 pub async fn find_chain_stamp_by_id<'a, E>(
     pool: E,

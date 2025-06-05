@@ -1,4 +1,5 @@
 use crate::context::{ApplicationContext, UserContext};
+use crate::core::EntryType::Credit;
 use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
@@ -40,13 +41,7 @@ pub async fn create_account(
     ////// 2. Create the ledger to keep track of the entire transaction [wallet, block, ledger].
     // Should have a ledger for record keeping
     let description = Some("initialization for newly created account".to_string());
-    let ledger = create_ledger(
-        &mut *db_tx,
-        EntryType::Credit.to_string(),
-        new_acct.id.clone(),
-        description,
-    )
-    .await?;
+    let ledger = create_ledger(&mut *db_tx, Credit, new_acct.id.clone(), description).await?;
 
     ////// 3. create a wallet that belongs to the account
     let wallet_holding = if let Some(wallet) =
@@ -64,7 +59,7 @@ pub async fn create_account(
     entry_ids.push(ledger.id.clone());
 
     ////// 4. Create a chain_stamp for blocks that group ledger entries.
-    let chain_stamp = create_chain_stamp(&mut *db_tx, None).await?;
+    let chain_stamp = create_chain_stamp(&mut db_tx, None).await?;
 
     //// Create a block for ledger-entry grouping. This block will contain the root chain_stamp
     let block = Block::build(

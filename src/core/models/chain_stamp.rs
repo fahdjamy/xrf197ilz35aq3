@@ -122,6 +122,10 @@ impl ChainStamp {
         self.child_stamp.is_some()
     }
 
+    pub fn has_parent(&self) -> bool {
+        self.parent_chain_id().is_some()
+    }
+
     pub fn version(&self) -> ChainStampVersion {
         self.version.clone()
     }
