@@ -35,10 +35,10 @@ VALUES ($1, $2, $3, $4, $5, $6)",
     Ok(result.rows_affected() == 1)
 }
 
-#[tracing::instrument(skip(db_tx, entries))]
+#[tracing::instrument(skip(pool, entries))]
 pub async fn bulk_save_ledger<'a, E>(
+    pool: E,
     entries: Vec<LedgerEntry>,
-    db_tx: &mut Transaction<'_, Postgres>,
 ) -> Result<u64, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
@@ -57,7 +57,7 @@ where
         seq_numbers.push(entry.sequence_number as i64);
         descriptions.push(entry.description.unwrap_or_else(|| "".to_string()));
     }
-    let query = sqlx::query!(
+    let rows_affected = sqlx::query!(
         r#"
 INSERT INTO ledger_entry (
                           id,
@@ -82,8 +82,9 @@ SELECT * FROM UNNEST(
         seq_numbers.as_slice(),
         timestamps.as_slice(),
         entry_types.as_slice(),
-    );
-
-    let rows_affected = db_tx.execute(query).await?.rows_affected();
+    )
+    .execute(pool)
+    .await?
+    .rows_affected();
     Ok(rows_affected)
 }

@@ -5,7 +5,7 @@ use cassandra_cpp::{
 };
 
 pub async fn save_block_chain(
-    block: Block,
+    block: &Block,
     session: Session,
     prepared_insert_stmt: PreparedStatement,
 ) -> Result<bool, CassandraDBError> {
@@ -39,7 +39,7 @@ pub async fn save_block_chain(
 
     let mut entry_ids_col = cassandra_cpp::List::new();
 
-    for entry_id in block.entry_ids {
+    for entry_id in block.entry_ids.clone() {
         entry_ids_col
             .append_string(&entry_id)
             .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;

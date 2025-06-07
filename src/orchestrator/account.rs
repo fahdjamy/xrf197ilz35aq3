@@ -97,7 +97,7 @@ pub async fn create_account(
 
     ///// 6 save block to cassandra DB
     let block_saved = save_block_chain(
-        block,
+        &block,
         cassandra_session,
         app_cxt.statements.insert_block_stmt,
     )

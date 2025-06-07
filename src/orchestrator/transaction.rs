@@ -142,7 +142,7 @@ pub async fn start_debit_transaction(
 
     ///// 5 save block to cassandra DB
     let block_saved = save_block_chain(
-        block,
+        &block,
         cassandra_session,
         app_cxt.statements.insert_block_stmt,
     )
