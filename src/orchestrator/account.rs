@@ -22,9 +22,6 @@ pub async fn create_account(
     app_cxt: ApplicationContext,
     statements: PreparedAppStatements,
 ) -> Result<(Account, WalletHolding), OrchestrateError> {
-    let block_region = BlockRegion::from_str(&app_cxt.region)
-        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
-
     let event = "createAccount";
     let mut db_tx = start_db_transaction(pool, event).await?;
 
@@ -64,7 +61,7 @@ pub async fn create_account(
     //// Create a block for ledger-entry grouping. This block will contain the root chain_stamp
     let block = Block::build(
         app_cxt.app_id.to_string(),
-        block_region,
+        app_cxt.block_region,
         entry_ids,
         chain_stamp.stamp.clone(),
     )

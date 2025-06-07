@@ -9,7 +9,6 @@ use uuid::Uuid;
 pub struct ApplicationContext {
     pub app_id: u64,
     pub name: String,
-    pub region: String,
     pub timestamp: u64,
     pub is_test_ctx: bool,
     pub block_region: BlockRegion,
@@ -28,7 +27,6 @@ impl ApplicationContext {
             Err(e) => return Err(e.to_string()),
         };
         Ok(ApplicationContext {
-            region,
             app_id,
             statements,
             block_region,
@@ -52,13 +50,12 @@ impl ApplicationContext {
             is_test_ctx: true,
             name: Uuid::new_v4().to_string(),
             timestamp: Utc::now().timestamp() as u64,
-            region: BlockRegion::MexicoCentral.to_string(),
         })
     }
 }
 
 impl Display for ApplicationContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "appId={} :: region={}", self.app_id, self.region)
+        write!(f, "appId={} :: region={}", self.app_id, self.block_region)
     }
 }
