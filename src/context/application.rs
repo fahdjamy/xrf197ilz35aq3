@@ -1,36 +1,59 @@
 use crate::core::BlockRegion;
+use crate::storage::PreparedAppStatements;
 use chrono::Utc;
 use std::fmt::Display;
+use std::str::FromStr;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ApplicationContext {
     pub app_id: u64,
     pub name: String,
     pub region: String,
     pub timestamp: u64,
     pub is_test_ctx: bool,
+    pub block_region: BlockRegion,
+    pub statements: PreparedAppStatements,
 }
 
 impl ApplicationContext {
-    pub fn load(app_name: String, region: String) -> Self {
-        ApplicationContext {
+    pub fn load(
+        app_id: u64,
+        region: String,
+        app_name: String,
+        statements: PreparedAppStatements,
+    ) -> Result<Self, String> {
+        let block_region = match BlockRegion::from_str(&region) {
+            Ok(region) => region,
+            Err(e) => return Err(e.to_string()),
+        };
+        Ok(ApplicationContext {
             region,
-            app_id: 0,
+            app_id,
+            statements,
+            block_region,
             name: app_name,
             is_test_ctx: false,
             timestamp: Utc::now().timestamp() as u64,
-        }
+        })
     }
 
-    pub fn load_test_ctx(app_id: u64) -> Self {
-        ApplicationContext {
+    pub fn load_test_ctx(
+        app_id: u64,
+        region: String,
+        statements: PreparedAppStatements,
+    ) -> Result<Self, String> {
+        let block_region =
+            BlockRegion::from_str(&region).unwrap_or_else(|e| BlockRegion::MexicoCentral);
+        Ok(ApplicationContext {
             app_id,
+            statements,
+            block_region,
             is_test_ctx: true,
             name: Uuid::new_v4().to_string(),
             timestamp: Utc::now().timestamp() as u64,
             region: BlockRegion::MexicoCentral.to_string(),
-        }
+        })
     }
 }
 

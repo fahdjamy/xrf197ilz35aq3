@@ -2,6 +2,7 @@ use crate::storage::prepare_insert_block_statement;
 use crate::CassandraDBError;
 use cassandra_cpp::{PreparedStatement, Session};
 
+#[derive(Debug)]
 pub struct PreparedAppStatements {
     pub insert_block_stmt: PreparedStatement,
 }

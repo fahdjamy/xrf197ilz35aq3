@@ -1,10 +1,8 @@
 use crate::context::{ApplicationContext, UserContext};
 use crate::core::EntryType::Debit;
-use crate::core::{Block, BlockRegion, MonetaryTransaction, TransactionType};
+use crate::core::{Block, MonetaryTransaction, TransactionType};
 use crate::error::OrchestrateError;
-use crate::storage::{
-    find_chain_stamp_by_id, save_block_chain, save_monetary_tx, PreparedAppStatements,
-};
+use crate::storage::{find_chain_stamp_by_id, save_block_chain, save_monetary_tx};
 use crate::{
     commit_db_transaction, create_activity, create_chain_stamp, create_ledger, debit_wallet,
     find_last_user_activity, rollback_db_transaction, start_db_transaction, DomainError,
@@ -18,18 +16,14 @@ use tracing::log;
 
 pub async fn start_debit_transaction(
     pool: &PgPool,
-    user_fp: &str,
     amount: String,
     tx_type: String,
     account_id: String,
     user_ctx: UserContext,
     cassandra_session: Session,
     app_cxt: ApplicationContext,
-    statements: PreparedAppStatements,
 ) -> Result<MonetaryTransaction, OrchestrateError> {
     let event = "debitTransaction";
-    let block_region = BlockRegion::from_str(&app_cxt.region)
-        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
     let mut db_tx = start_db_transaction(pool, event).await?;
 
     ////// 0. Validate user request
@@ -50,8 +44,7 @@ pub async fn start_debit_transaction(
     }
 
     ////// Get last user activity
-
-    let last_user_activity = match find_last_user_activity(&mut *db_tx, user_fp).await? {
+    let last_user_activity = match find_last_user_activity(&mut *db_tx, &user_ctx.user_fp).await? {
         Some(last_user_activity) => last_user_activity,
         None => {
             // if no activity is found, then the wallet is not valid
@@ -101,7 +94,7 @@ pub async fn start_debit_transaction(
     //// Create a block for ledger-entry grouping. This block will contain the root chain_stamp
     let block = Block::build(
         app_cxt.app_id.to_string(),
-        block_region,
+        app_cxt.block_region,
         entry_ids,
         chain_stamp.stamp.clone(),
     )
@@ -148,12 +141,16 @@ pub async fn start_debit_transaction(
     }
 
     ///// 5 save block to cassandra DB
-    let block_saved = save_block_chain(block, cassandra_session, statements.insert_block_stmt)
-        .await
-        .map_err(|err| {
-            log::error!("failed to save block to cassandra DB: {}", err);
-            OrchestrateError::ServerError(err.to_string())
-        })?;
+    let block_saved = save_block_chain(
+        block,
+        cassandra_session,
+        app_cxt.statements.insert_block_stmt,
+    )
+    .await
+    .map_err(|err| {
+        log::error!("failed to save block to cassandra DB: {}", err);
+        OrchestrateError::ServerError(err.to_string())
+    })?;
 
     if block_saved {
         commit_db_transaction(db_tx, event).await?;
