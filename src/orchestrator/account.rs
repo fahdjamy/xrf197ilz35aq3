@@ -1,9 +1,9 @@
 use crate::context::{ApplicationContext, UserContext};
 use crate::core::EntryType::Credit;
-use crate::core::{Account, AccountType, Block, BlockRegion, Currency, EntryType, WalletHolding};
+use crate::core::{Account, AccountType, Block, Currency, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::orchestrator::{create_ledger, create_wallet_holding};
-use crate::storage::{save_account, save_block_chain, PreparedAppStatements};
+use crate::storage::{save_account, save_block_chain};
 use crate::{
     commit_db_transaction, create_activity, create_chain_stamp, rollback_db_transaction,
     start_db_transaction, DomainError, CREATE_NEW_USER_ACCOUNT,
@@ -20,7 +20,6 @@ pub async fn create_account(
     user_ctx: UserContext,
     cassandra_session: Session,
     app_cxt: ApplicationContext,
-    statements: PreparedAppStatements,
 ) -> Result<(Account, WalletHolding), OrchestrateError> {
     let event = "createAccount";
     let mut db_tx = start_db_transaction(pool, event).await?;
@@ -97,12 +96,16 @@ pub async fn create_account(
     }
 
     ///// 6 save block to cassandra DB
-    let block_saved = save_block_chain(block, cassandra_session, statements.insert_block_stmt)
-        .await
-        .map_err(|err| {
-            log::error!("failed to save block to cassandra DB: {}", err);
-            OrchestrateError::ServerError(err.to_string())
-        })?;
+    let block_saved = save_block_chain(
+        block,
+        cassandra_session,
+        app_cxt.statements.insert_block_stmt,
+    )
+    .await
+    .map_err(|err| {
+        log::error!("failed to save block to cassandra DB: {}", err);
+        OrchestrateError::ServerError(err.to_string())
+    })?;
 
     if block_saved {
         commit_db_transaction(db_tx, event).await?;
