@@ -152,12 +152,12 @@ pub struct WalletHolding {
 }
 
 impl WalletHolding {
-    pub fn new(account_id: String, entry_id: String) -> Self {
+    pub fn new(account_id: String) -> Self {
         WalletHolding {
             account_id,
-            last_entry_id: entry_id,
             balance: Decimal::zero(),
             modification_time: Utc::now(),
+            last_entry_id: "IGNORED".to_string(),
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::core::{EntryType, LedgerEntry};
 use crate::PgDatabaseError;
-use sqlx::{Executor, Postgres, Transaction};
+use sqlx::{Executor, Postgres};
 
 #[tracing::instrument(skip(pg_pool, ledger_entry))]
 pub async fn save_ledger<'a, E>(
