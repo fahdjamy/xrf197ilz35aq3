@@ -1,10 +1,12 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::EntryType::Credit;
+use crate::core::EntryType;
 use crate::core::{Account, AccountType, Currency, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
 use crate::storage::save_account;
-use crate::{create_block_chain, rollback_db_transaction, start_db_transaction};
+use crate::{
+    commit_db_transaction, create_block_chain, rollback_db_transaction, start_db_transaction,
+};
 use cassandra_cpp::Session;
 use sqlx::{PgConnection, PgPool};
 use std::str::FromStr;
@@ -47,7 +49,7 @@ pub async fn create_account(
 
     let block = match create_block_chain(
         new_acct.id.clone(),
-        Credit,
+        EntryType::Initialization,
         user_ctx,
         cassandra_session,
         app_cxt,
@@ -56,7 +58,10 @@ pub async fn create_account(
     )
     .await
     {
-        Ok(block) => block,
+        Ok(block) => {
+            commit_db_transaction(db_tx, event).await?;
+            block
+        }
         Err(err) => {
             error!("failed to create blockchain: {}", err);
             rollback_db_transaction(db_tx, event).await?;

@@ -10,6 +10,7 @@ use std::str::FromStr;
 pub enum EntryType {
     Debit,  // Increases assets/expenses, decreases liability/equity/revenue
     Credit, // Increases liability/equity/revenue, decreases assets/expenses
+    Initialization,
 }
 
 impl FromStr for EntryType {
@@ -18,6 +19,7 @@ impl FromStr for EntryType {
         match s {
             "debit" | "Debit" => Ok(EntryType::Debit),
             "credit" | "Credit" => Ok(EntryType::Credit),
+            "init" | "Initialization" => Ok(EntryType::Initialization),
             _ => Err(DomainError::ParseError("Unknown entry type".to_string())),
         }
     }
@@ -31,6 +33,9 @@ impl Display for EntryType {
             }
             EntryType::Credit => {
                 write!(f, "Credit")
+            }
+            EntryType::Initialization => {
+                write!(f, "Initialization")
             }
         }
     }

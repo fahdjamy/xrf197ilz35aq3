@@ -1,18 +1,16 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::EntryType::Debit;
-use crate::core::{Block, MonetaryTransaction, TransactionType};
+use crate::core::{EntryType, MonetaryTransaction, TransactionType};
 use crate::error::OrchestrateError;
-use crate::storage::{find_chain_stamp_by_id, save_block_chain, save_monetary_tx};
+use crate::storage::save_monetary_tx;
 use crate::{
-    commit_db_transaction, create_activity, create_chain_stamp, create_ledger, debit_wallet,
-    find_last_user_activity, rollback_db_transaction, start_db_transaction, DomainError,
-    CREATE_NEW_USER_ACCOUNT,
+    commit_db_transaction, create_block_chain, debit_wallet, rollback_db_transaction,
+    start_db_transaction,
 };
 use cassandra_cpp::Session;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use std::str::FromStr;
-use tracing::log;
+use tracing::{error, info};
 
 pub async fn start_debit_transaction(
     pool: &PgPool,
@@ -27,7 +25,7 @@ pub async fn start_debit_transaction(
     let mut db_tx = start_db_transaction(pool, event).await?;
 
     ////// 0. Validate user request
-    let decimal_amount = Decimal::from_str(&amount).map_err(|e| {
+    let decimal_amount = Decimal::from_str(&amount).map_err(|_e| {
         return OrchestrateError::InvalidArgument("cannot parse amount".to_string());
     })?;
 
@@ -43,94 +41,15 @@ pub async fn start_debit_transaction(
         ));
     }
 
-    ////// Get last user activity
-    let last_user_activity = match find_last_user_activity(&mut *db_tx, &user_ctx.user_fp).await? {
-        Some(last_user_activity) => last_user_activity,
-        None => {
-            // if no activity is found, then the wallet is not valid
-            // at least the creation account activity should have been created.
-            return Err(OrchestrateError::InvalidRecordState(
-                "No user activity found".to_string(),
-            ));
-        }
-    };
-
-    ////// 1. Create ledgers for the debit transaction actions
-    let description = Some("debit user wallet".to_string());
-    let ledger = match create_ledger(&mut *db_tx, Debit, account_id.clone(), description).await {
-        Ok(ledger) => ledger,
-        Err(err) => {
-            rollback_db_transaction(db_tx, event).await?;
-            return Err(err);
-        }
-    };
-
-    let mut entry_ids = Vec::new();
-    entry_ids.push(ledger.id.clone());
-
-    ////// 2. Create a chain_stamp to chain blocks together.
-    ////// 2.1 Find last activity chain stamp which will be the parent.
-    let parent_chain_stamp =
-        match find_chain_stamp_by_id(&mut *db_tx, &last_user_activity.chain_id).await? {
-            Some(chain_stamp) => chain_stamp,
-            None => {
-                rollback_db_transaction(db_tx, event).await?;
-                return Err(OrchestrateError::InvalidRecordState(
-                    "can not debit account with no prior activity".to_string(),
-                ));
-            }
-        };
-
-    ////// 2.2 Create a new chain stamp for this transaction.
-    let chain_stamp = match create_chain_stamp(&mut db_tx, Some(parent_chain_stamp)).await {
-        Ok(chain_stamp) => chain_stamp,
-        Err(err) => {
-            rollback_db_transaction(db_tx, event).await?;
-            return Err(err);
-        }
-    };
-
-    ///// 3 create a block
-    //// Create a block for ledger-entry grouping. This block will contain the root chain_stamp
-    let block = Block::build(
-        app_cxt.app_id.to_string(),
-        app_cxt.block_region,
-        entry_ids,
-        chain_stamp.stamp.clone(),
-    )
-    .map_err(|err| match err {
-        DomainError::ParseError(er) => OrchestrateError::InvalidArgument(er),
-        DomainError::InvalidArgument(er) => OrchestrateError::InvalidArgument(er),
-        DomainError::InvalidState(er) => {
-            log::error!("invalid record/row state: {}", er);
-            OrchestrateError::ServerError(er)
-        }
-    })?;
-
-    ///// 4. Create an activity chain stamp and the block created
-
-    match create_activity(
-        &mut *db_tx,
-        block.id.clone(),
-        chain_stamp.stamp.clone(),
-        CREATE_NEW_USER_ACCOUNT.to_string(),
-        &user_ctx,
-    )
-    .await?
-    {
-        Some(created_activity) => {
-            log::info!("activity created: {:?}", created_activity);
-        }
-        None => {
-            rollback_db_transaction(db_tx, event).await?;
-            return Err(OrchestrateError::ServerError(
-                "failed to create activity".to_string(),
-            ));
-        }
-    }
-
+    ////// 1. Debit user wallet
     let debit_tx = MonetaryTransaction::payment(decimal_amount, account_id.clone());
-    debit_wallet(&mut db_tx, decimal_amount, account_id, "todo".to_string()).await?;
+    debit_wallet(
+        &mut db_tx,
+        decimal_amount,
+        account_id.clone(),
+        "todo".to_string(),
+    )
+    .await?;
 
     let account_debited = save_monetary_tx(&mut *db_tx, &debit_tx).await?;
     if !account_debited {
@@ -140,26 +59,35 @@ pub async fn start_debit_transaction(
         ));
     }
 
-    ///// 5 save block to cassandra DB
-    let block_saved = save_block_chain(
-        &block,
+    let mut ledger_desc = Vec::new();
+    ledger_desc.push("debit user account".to_string());
+
+    ///// 2. Create blockchain
+    let block = match create_block_chain(
+        account_id.clone(),
+        EntryType::Credit,
+        user_ctx,
         cassandra_session,
-        app_cxt.statements.insert_block_stmt,
+        app_cxt,
+        ledger_desc,
+        &mut db_tx,
     )
     .await
-    .map_err(|err| {
-        log::error!("failed to save block to cassandra DB: {}", err);
-        OrchestrateError::ServerError(err.to_string())
-    })?;
-
-    if block_saved {
-        commit_db_transaction(db_tx, event).await?;
-    } else {
-        rollback_db_transaction(db_tx, event).await?;
-        return Err(OrchestrateError::ServerError(
-            "failed to save block to DB".to_string(),
-        ));
-    }
+    {
+        Ok(block) => {
+            commit_db_transaction(db_tx, event).await?;
+            block
+        }
+        Err(err) => {
+            error!("failed to create blockchain for debit account: {}", err);
+            rollback_db_transaction(db_tx, event).await?;
+            return Err(err.into());
+        }
+    };
+    info!(
+        "successfully debited account {} to block {}",
+        account_id, block.id
+    );
 
     Ok(debit_tx)
 }

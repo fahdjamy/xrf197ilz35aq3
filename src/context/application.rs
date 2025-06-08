@@ -42,7 +42,7 @@ impl ApplicationContext {
         statements: PreparedAppStatements,
     ) -> Result<Self, String> {
         let block_region =
-            BlockRegion::from_str(&region).unwrap_or_else(|e| BlockRegion::MexicoCentral);
+            BlockRegion::from_str(&region).unwrap_or_else(|_e| BlockRegion::MexicoCentral);
         Ok(ApplicationContext {
             app_id,
             statements,
