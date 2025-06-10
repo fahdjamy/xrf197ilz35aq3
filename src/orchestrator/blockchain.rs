@@ -1,4 +1,5 @@
 use crate::context::{ApplicationContext, UserContext};
+use crate::core::chain_stamp::ChainStamp;
 use crate::core::{Block, EntryType, LedgerEntry};
 use crate::error::OrchestrateError;
 use crate::storage::{bulk_save_ledger, find_chain_stamp_by_id, save_block_chain};
@@ -8,9 +9,9 @@ use crate::{
 };
 use cassandra_cpp::Session;
 use sqlx::{Postgres, Transaction};
-use tracing::log;
+use tracing::{info, log};
 
-pub async fn create_block_chain(
+pub async fn create_chained_block_chain(
     acct_id: String,
     entry: EntryType,
     user_ctx: UserContext,
@@ -19,18 +20,38 @@ pub async fn create_block_chain(
     ledger_descriptions: Vec<String>,
     db_tx: &mut Transaction<'_, Postgres>,
 ) -> Result<Block, OrchestrateError> {
-    ////// 1. Get last user activity
-    let last_user_activity = match find_last_user_activity(&mut **db_tx, &user_ctx.user_fp).await? {
-        Some(last_user_activity) => last_user_activity,
+    let parent_chain_stamp = match get_parent_chain(&user_ctx, db_tx).await? {
+        Some(chain_stamp) => chain_stamp,
         None => {
-            // if no activity is found, then the wallet is not valid
-            // at least the creation account activity should have been created.
             return Err(OrchestrateError::InvalidRecordState(
-                "No user activity found".to_string(),
+                "There's no parent chain stamp".to_string(),
             ));
         }
     };
 
+    create_block_chain(
+        acct_id,
+        entry,
+        &user_ctx,
+        cassandra_session,
+        app_cxt,
+        ledger_descriptions,
+        db_tx,
+        Some(parent_chain_stamp),
+    )
+    .await
+}
+
+async fn create_block_chain(
+    acct_id: String,
+    entry: EntryType,
+    user_ctx: &UserContext,
+    cassandra_session: Session,
+    app_cxt: ApplicationContext,
+    ledger_descriptions: Vec<String>,
+    db_tx: &mut Transaction<'_, Postgres>,
+    parent_chain_stamp: Option<ChainStamp>,
+) -> Result<Block, OrchestrateError> {
     ////// 2. Create ledgers
     let mut entry_ids = Vec::new();
     let mut ledgers: Vec<LedgerEntry> = Vec::new();
@@ -48,20 +69,8 @@ pub async fn create_block_chain(
         ));
     }
 
-    ////// 3. Create a chain_stamp to chain blocks together.
-    ////// 3.1 Find last activity chain stamp which will be the parent.
-    let parent_chain_stamp =
-        match find_chain_stamp_by_id(&mut **db_tx, &last_user_activity.chain_id).await? {
-            Some(chain_stamp) => chain_stamp,
-            None => {
-                return Err(OrchestrateError::InvalidRecordState(
-                    "can not debit account with no prior activity".to_string(),
-                ));
-            }
-        };
-
     ////// 3.2 Create a new chain stamp for this transaction.
-    let chain_stamp = match create_chain_stamp(db_tx, Some(parent_chain_stamp)).await {
+    let chain_stamp = match create_chain_stamp(db_tx, parent_chain_stamp).await {
         Ok(chain_stamp) => chain_stamp,
         Err(err) => {
             return Err(err);
@@ -123,4 +132,48 @@ pub async fn create_block_chain(
         ));
     }
     Ok(block)
+}
+
+pub async fn create_initial_block_chain(
+    acct_id: String,
+    entry: EntryType,
+    user_ctx: UserContext,
+    cassandra_session: Session,
+    app_cxt: ApplicationContext,
+    ledger_descriptions: Vec<String>,
+    db_tx: &mut Transaction<'_, Postgres>,
+) -> Result<Block, OrchestrateError> {
+    create_block_chain(
+        acct_id,
+        entry,
+        &user_ctx,
+        cassandra_session,
+        app_cxt,
+        ledger_descriptions,
+        db_tx,
+        None,
+    )
+    .await
+}
+
+async fn get_parent_chain(
+    user_ctx: &UserContext,
+    db_tx: &mut Transaction<'_, Postgres>,
+) -> Result<Option<ChainStamp>, OrchestrateError> {
+    ////// 1. Get last user activity
+    let last_user_activity = match find_last_user_activity(&mut **db_tx, &user_ctx.user_fp).await? {
+        Some(last_user_activity) => last_user_activity,
+        None => {
+            // if no activity is found, then the wallet is not valid
+            // at least the creation account activity should have been created.
+            info!("no last user activity found");
+            return Ok(None);
+        }
+    };
+
+    ////// 3. Create a chain_stamp to chain blocks together.
+    ////// 3.1 Find last activity chain stamp which will be the parent.
+    let parent_chain_stamp =
+        find_chain_stamp_by_id(&mut **db_tx, &last_user_activity.chain_id).await?;
+    Ok(parent_chain_stamp)
 }

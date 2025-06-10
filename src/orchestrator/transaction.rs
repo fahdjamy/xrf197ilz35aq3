@@ -3,7 +3,7 @@ use crate::core::{EntryType, MonetaryTransaction, TransactionType};
 use crate::error::OrchestrateError;
 use crate::storage::save_monetary_tx;
 use crate::{
-    commit_db_transaction, create_block_chain, debit_wallet, rollback_db_transaction,
+    commit_db_transaction, create_chained_block_chain, debit_wallet, rollback_db_transaction,
     start_db_transaction,
 };
 use cassandra_cpp::Session;
@@ -63,7 +63,7 @@ pub async fn start_debit_transaction(
     ledger_desc.push("debit user account".to_string());
 
     ///// 2. Create blockchain
-    let block = match create_block_chain(
+    let block = match create_chained_block_chain(
         account_id.clone(),
         EntryType::Credit,
         user_ctx,

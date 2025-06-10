@@ -5,7 +5,8 @@ use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
 use crate::storage::save_account;
 use crate::{
-    commit_db_transaction, create_block_chain, rollback_db_transaction, start_db_transaction,
+    commit_db_transaction, create_initial_block_chain, rollback_db_transaction,
+    start_db_transaction,
 };
 use cassandra_cpp::Session;
 use sqlx::{PgConnection, PgPool};
@@ -47,7 +48,7 @@ pub async fn create_account(
     let mut ledger_desc = Vec::new();
     ledger_desc.push("initialization for newly created account".to_string());
 
-    let block = match create_block_chain(
+    let block = match create_initial_block_chain(
         new_acct.id.clone(),
         EntryType::Initialization,
         user_ctx,
