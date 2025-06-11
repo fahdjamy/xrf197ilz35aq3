@@ -12,7 +12,7 @@ use sqlx::PgPool;
 use std::str::FromStr;
 use tracing::{error, info};
 
-pub async fn start_debit_transaction(
+pub async fn debit_wallet_transaction(
     pool: &PgPool,
     amount: String,
     tx_type: String,
@@ -65,7 +65,7 @@ pub async fn start_debit_transaction(
     ///// 2. Create blockchain
     let block = match create_chained_block_chain(
         account_id.clone(),
-        EntryType::Credit,
+        EntryType::Debit,
         user_ctx,
         cassandra_session,
         app_cxt,
