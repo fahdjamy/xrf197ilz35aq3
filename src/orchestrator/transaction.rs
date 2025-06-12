@@ -8,7 +8,7 @@ use crate::{
 };
 use cassandra_cpp::Session;
 use rust_decimal::Decimal;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 use std::str::FromStr;
 use tracing::{error, info};
 
@@ -38,6 +38,9 @@ pub async fn debit_wallet_transaction(
         ));
     }
 
+    let mut ledger_desc = Vec::new();
+    ledger_desc.push("debit user account".to_string());
+
     perform_wallet_transaction(
         event,
         pool,
@@ -47,6 +50,7 @@ pub async fn debit_wallet_transaction(
         EntryType::Debit,
         cassandra_session,
         app_cxt,
+        ledger_desc,
     )
     .await
 }
@@ -60,6 +64,7 @@ pub async fn perform_wallet_transaction(
     tx_entry_type: EntryType,
     cassandra_session: Session,
     app_cxt: ApplicationContext,
+    mut ledger_desc: Vec<String>,
 ) -> Result<MonetaryTransaction, OrchestrateError> {
     let mut db_tx = start_db_transaction(pool, event).await?;
     ////// 1. Debit user wallet
@@ -70,14 +75,17 @@ pub async fn perform_wallet_transaction(
     if !account_debited {
         rollback_db_transaction(db_tx, event).await?;
         return Err(OrchestrateError::ServerError(
-            "could not debit user account, try again later".to_string(),
+            "could not perform wallet transaction".to_string(),
         ));
     }
 
-    let mut ledger_desc = Vec::new();
-    ledger_desc.push("debit user account".to_string());
+    // 2. Charge the user account with commission
+    let commission = amount * Decimal::from_str("0.001").unwrap();
+    charge_commission(&account_id, commission, &mut db_tx).await?;
 
-    ///// 2. Create blockchain
+    ledger_desc.push("charge user wallet with commission".to_string());
+
+    ///// 3. Create blockchain
     let block = match create_chained_block_chain(
         account_id.clone(),
         tx_entry_type,
@@ -105,28 +113,6 @@ pub async fn perform_wallet_transaction(
     );
 
     Ok(debit_tx)
-}
-
-fn validate_transaction(
-    amount: &Decimal,
-    tx_entry_type: &EntryType,
-    tx_type: &TransactionType,
-) -> Result<(), String> {
-    match tx_entry_type {
-        EntryType::Credit => {
-            if tx_type.must_be_positive() && (amount.is_sign_negative() || amount.is_zero()) {
-                return Err("amount cannot be less than or equal to 0 for tx".to_string());
-            }
-            Ok(())
-        }
-        EntryType::Debit => Ok(()),
-        EntryType::Initialization => {
-            if !amount.is_zero() {
-                return Err("must be zero for initialization types".to_string());
-            }
-            Ok(())
-        }
-    }
 }
 
 pub async fn credit_wallet(
@@ -160,6 +146,8 @@ pub async fn credit_wallet(
             "invalid transaction type for crediting user wallets".to_string(),
         ));
     }
+    let mut ledger_desc = Vec::new();
+    ledger_desc.push("credit user account".to_string());
 
     perform_wallet_transaction(
         event,
@@ -170,6 +158,15 @@ pub async fn credit_wallet(
         EntryType::Credit,
         cassandra_session,
         app_cxt,
+        ledger_desc,
     )
     .await
+}
+
+async fn charge_commission(
+    acct_id: &str,
+    amount: Decimal,
+    db_tx: &mut Transaction<'_, Postgres>,
+) -> Result<(), OrchestrateError> {
+    unimplemented!()
 }
