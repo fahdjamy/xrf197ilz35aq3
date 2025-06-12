@@ -48,6 +48,12 @@ impl TransactionType {
             || *self == TransactionType::Transfer
             || *self == TransactionType::Commission
     }
+
+    pub fn is_credit_transaction(&self) -> bool {
+        *self == TransactionType::Transfer
+            || *self == TransactionType::Reversal
+            || *self == TransactionType::Commission
+    }
 }
 
 impl FromStr for TransactionType {
