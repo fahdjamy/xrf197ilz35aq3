@@ -11,44 +11,10 @@ use std::str::FromStr;
 #[sqlx(type_name = "account_status")]
 #[sqlx(rename_all = "PascalCase")]
 pub enum AccountStatus {
-    Frozen,
     Active,
-    Inactive,
+    Frozen,   // For a result of suspected fraud, unpaid debt, or legal issues
+    Inactive, // Lack of customer-initiated txs for a specific period (e.g., 30, 60 days) determined by the terms.
 }
-
-// impl Type<Postgres> for AccountStatus {
-//     fn type_info() -> PgTypeInfo {
-//         PgTypeInfo::with_name("account_type") // Note the leading underscore for array types in PostgresSQL
-//     }
-//
-//     fn compatible(ty: &PgTypeInfo) -> bool {
-//         ty.name() == "account_type"
-//     }
-// }
-//
-// impl<'q> Encode<'q, Postgres> for AccountStatus {
-//     fn encode_by_ref(
-//         &self,
-//         buf: &mut <Postgres as Database>::ArgumentBuffer<'q>,
-//     ) -> Result<IsNull, BoxDynError> {
-//         // Use sqlx's array encoding to directly encode the Vec<Currency>
-//         // directly encode the inner self.0 (which is a Vec<Currency>) using its own Encode
-//         // implementation. Vec already implements Encode for arrays,
-//         // and Currency implements Type (which transitively provides Encode and Decode).
-//         <AccountStatus as Encode<'_, Postgres>>::encode(self.clone(), buf)
-//     }
-// }
-//
-// // 4. Implement Decode for Vec<Currency> to handle deserialization from PostgresSQL
-// impl<'r> Decode<'r, Postgres> for AccountStatus {
-//     fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, BoxDynError> {
-//         // Decode directly into a Vec<Currency> using sqlx's built-in array decoding
-//         // Sqlx has built-in support for decoding arrays into Vec when the element type implements Decode.
-//         let account_status: AccountStatus = Decode::<Postgres>::decode(value)?;
-//         // Wrap the Vec<Currency> in CurrencyList
-//         Ok(account_status)
-//     }
-// }
 
 impl FromStr for AccountStatus {
     type Err = DomainError;
@@ -149,7 +115,7 @@ impl Display for AccountType {
 #[derive(Serialize, Debug, Clone)]
 pub struct Account {
     pub id: String,
-    pub locked: bool,
+    pub locked: bool, // A security measure to prevent unauthorized access, often triggered by multiple failed tx attempts
     pub user_fp: String,
     pub timezone: String,
     pub currency: Currency,
