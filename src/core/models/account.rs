@@ -7,12 +7,61 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{write, Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Serialize, Debug, Clone, Deserialize, sqlx::Type)]
+#[derive(Serialize, Debug, Clone, Deserialize, sqlx::Type, PartialEq, Eq)]
 #[sqlx(type_name = "account_status")]
+#[sqlx(rename_all = "PascalCase")]
 pub enum AccountStatus {
     Frozen,
     Active,
     Inactive,
+}
+
+// impl Type<Postgres> for AccountStatus {
+//     fn type_info() -> PgTypeInfo {
+//         PgTypeInfo::with_name("account_type") // Note the leading underscore for array types in PostgresSQL
+//     }
+//
+//     fn compatible(ty: &PgTypeInfo) -> bool {
+//         ty.name() == "account_type"
+//     }
+// }
+//
+// impl<'q> Encode<'q, Postgres> for AccountStatus {
+//     fn encode_by_ref(
+//         &self,
+//         buf: &mut <Postgres as Database>::ArgumentBuffer<'q>,
+//     ) -> Result<IsNull, BoxDynError> {
+//         // Use sqlx's array encoding to directly encode the Vec<Currency>
+//         // directly encode the inner self.0 (which is a Vec<Currency>) using its own Encode
+//         // implementation. Vec already implements Encode for arrays,
+//         // and Currency implements Type (which transitively provides Encode and Decode).
+//         <AccountStatus as Encode<'_, Postgres>>::encode(self.clone(), buf)
+//     }
+// }
+//
+// // 4. Implement Decode for Vec<Currency> to handle deserialization from PostgresSQL
+// impl<'r> Decode<'r, Postgres> for AccountStatus {
+//     fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, BoxDynError> {
+//         // Decode directly into a Vec<Currency> using sqlx's built-in array decoding
+//         // Sqlx has built-in support for decoding arrays into Vec when the element type implements Decode.
+//         let account_status: AccountStatus = Decode::<Postgres>::decode(value)?;
+//         // Wrap the Vec<Currency> in CurrencyList
+//         Ok(account_status)
+//     }
+// }
+
+impl FromStr for AccountStatus {
+    type Err = DomainError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Frozen" => Ok(AccountStatus::Frozen),
+            "Active" => Ok(AccountStatus::Active),
+            "Inactive" => Ok(AccountStatus::Inactive),
+            _ => Err(DomainError::ParseError(
+                "unrecognized account status".to_string(),
+            )),
+        }
+    }
 }
 
 impl Display for AccountStatus {
@@ -46,7 +95,7 @@ impl Display for AccountStatus {
 ///
 /// Examples transaction of an accountTypes in action
 ///
-///     1. Buyer A pays $50 and Buyer A's UserWallet is debited $50.
+///     1. A Buyer pays $50 and a Buyer A's UserWallet is debited $50.
 ///     3. An Escrow account is created for the Seller, and it is credited $50.
 ///     4. The seller transfers the item, Buyer-A confirms that they have received the asset.
 ///     5. The Escrow account for the Seller is debited $50.
@@ -54,6 +103,7 @@ impl Display for AccountStatus {
 ///
 #[derive(Serialize, Debug, Clone, Eq, PartialEq, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "account_type")]
+#[sqlx(rename_all = "PascalCase")]
 pub enum AccountType {
     Normal,
     Wallet,

@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "currency_enum")]
+#[sqlx(rename_all = "UPPERCASE")]
 pub enum Currency {
     USD,
     EUR,
@@ -25,6 +26,8 @@ pub enum Currency {
     ADA,
     USDT,
     BNB,
+    /////// NOT Recognized
+    NOTSUPPORTED,
 }
 
 impl Currency {
@@ -65,6 +68,7 @@ impl FromStr for Currency {
             "BNB" => Ok(Currency::BNB),
             "XRFQ" => Ok(Currency::XRFQ),
             "USDT" => Ok(Currency::USDT),
+            "NOTSUPPORTED" => Ok(Currency::NOTSUPPORTED),
             _ => Err(DomainError::ParseError("unrecognized currency".to_string())),
         }
     }
@@ -84,13 +88,14 @@ impl Display for Currency {
             Currency::MXN => write!(f, "MXN"),
             Currency::QAR => write!(f, "QAR"),
             Currency::JPY => write!(f, "JPY"),
-            Currency::XRFQ => write!(f, "XRFQ"),
             Currency::SOL => write!(f, "SOL"),
             Currency::BTC => write!(f, "BTC"),
-            Currency::USDT => write!(f, "USDT"),
             Currency::ADA => write!(f, "ADA"),
             Currency::ETH => write!(f, "ETH"),
             Currency::BNB => write!(f, "BNB"),
+            Currency::XRFQ => write!(f, "XRFQ"),
+            Currency::USDT => write!(f, "USDT"),
+            Currency::NOTSUPPORTED => write!(f, "NOTSUPPORTED"),
         }
     }
 }
