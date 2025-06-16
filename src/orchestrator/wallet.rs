@@ -1,4 +1,4 @@
-use crate::core::WalletHolding;
+use crate::core::{Currency, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::storage::{create_wallet, fetch_wallet, update_wallet_balance};
 use chrono::Utc;
@@ -9,11 +9,12 @@ use sqlx::{Executor, PgConnection, Postgres, Transaction};
 pub async fn create_wallet_holding<'a, E>(
     pool: E,
     acct_id: String,
+    currency: Currency,
 ) -> Result<Option<WalletHolding>, OrchestrateError>
 where
     E: Executor<'a, Database = Postgres>,
 {
-    let wallet_holding = WalletHolding::new(acct_id);
+    let wallet_holding = WalletHolding::new(acct_id, currency);
 
     let wallet_created = create_wallet(pool, &wallet_holding).await?;
     if !wallet_created {
@@ -39,7 +40,6 @@ pub async fn credit_wallet_holding(
     db_tx: &mut Transaction<'_, Postgres>,
     amount: Decimal,
     acct_id: String,
-    ledger_entry_id: String,
 ) -> Result<bool, OrchestrateError> {
     if amount == Decimal::zero() {
         return Err(OrchestrateError::InvalidArgument(
@@ -56,7 +56,6 @@ pub async fn credit_wallet_holding(
     };
 
     wallet_holding.modification_time = Utc::now();
-    wallet_holding.last_entry_id = ledger_entry_id;
     wallet_holding.balance = wallet_holding.balance + amount;
 
     let updated_wallet = update_wallet_balance(&mut **db_tx, &wallet_holding).await?;
@@ -71,7 +70,6 @@ pub async fn debit_wallet(
     tx: &mut PgConnection,
     amount: Decimal,
     acct_id: String,
-    ledger_entry_id: String,
 ) -> Result<bool, OrchestrateError> {
     if amount == Decimal::zero() {
         return Err(OrchestrateError::InvalidArgument(
@@ -95,7 +93,6 @@ pub async fn debit_wallet(
     }
 
     wallet_holding.modification_time = Utc::now();
-    wallet_holding.last_entry_id = ledger_entry_id;
     wallet_holding.balance = wallet_holding.balance - amount;
 
     let updated_wallet = update_wallet_balance(&mut *tx, &wallet_holding).await?;

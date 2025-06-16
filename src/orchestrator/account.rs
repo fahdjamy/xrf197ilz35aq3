@@ -35,15 +35,16 @@ pub async fn create_account(
         };
 
     ////// 3. create a wallet that belongs to the account
-    let wallet_holding =
-        if let Some(wallet) = create_wallet_holding(&mut *db_tx, new_acct.id.clone()).await? {
-            wallet
-        } else {
-            rollback_db_transaction(db_tx, event).await?;
-            return Err(OrchestrateError::ServerError(
-                "failed to create wallet holding".to_string(),
-            ));
-        };
+    let wallet_holding = if let Some(wallet) =
+        create_wallet_holding(&mut *db_tx, new_acct.id.clone(), new_acct.currency.clone()).await?
+    {
+        wallet
+    } else {
+        rollback_db_transaction(db_tx, event).await?;
+        return Err(OrchestrateError::ServerError(
+            "failed to create wallet holding".to_string(),
+        ));
+    };
 
     let mut ledger_desc = Vec::new();
     ledger_desc.push("initialization for newly created account".to_string());

@@ -1,4 +1,4 @@
-use crate::core::WalletHolding;
+use crate::core::{Currency, WalletHolding};
 use crate::PgDatabaseError;
 use rust_decimal::Decimal;
 use sqlx::{Executor, Postgres};
@@ -17,14 +17,14 @@ where
         "
 INSERT INTO wallet (
                     balance,
+                    currency,
                     account_id,
-                    last_entry_id,
                     modification_time
                     )
 VALUES ($1, $2, $3, $4)",
         holding.balance as Decimal,
+        holding.currency.clone() as Currency,
         holding.account_id,
-        holding.last_entry_id,
         holding.modification_time,
     )
     .execute(pg_pool)
@@ -47,7 +47,13 @@ where
 {
     let result = sqlx::query_as!(
         WalletHolding,
-        "SELECT balance, account_id, last_entry_id, modification_time FROM wallet WHERE account_id = $1",
+        r#"
+SELECT balance,
+       currency as "currency: _",
+       account_id,
+       modification_time
+FROM wallet WHERE account_id = $1
+       "#,
         account_id
     )
     .fetch_one(pg_pool)
@@ -70,11 +76,10 @@ where
 {
     let result = sqlx::query_as!(
         WalletHolding,
-        r#"UPDATE wallet SET balance = $1, last_entry_id = $2, modification_time = $3
-              WHERE account_id = $4
-              RETURNING balance, last_entry_id, modification_time, account_id"#,
+        r#"UPDATE wallet SET balance = $1, modification_time = $2
+              WHERE account_id = $3
+              RETURNING balance, currency as "currency: _", modification_time, account_id"#,
         holding.balance as Decimal,
-        holding.last_entry_id,
         holding.modification_time,
         holding.account_id,
     )

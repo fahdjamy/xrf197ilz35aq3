@@ -159,27 +159,31 @@ impl Display for Account {
     }
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, sqlx::FromRow)]
 pub struct WalletHolding {
     pub balance: Decimal,
+    pub currency: Currency,
     pub account_id: String, // there should be a 1:1 (account_type x account_id) entry for this
-    pub last_entry_id: String,
     pub modification_time: DateTime<Utc>,
 }
 
 impl WalletHolding {
-    pub fn new(account_id: String) -> Self {
+    pub fn new(account_id: String, currency: Currency) -> Self {
         WalletHolding {
+            currency,
             account_id,
             balance: Decimal::zero(),
             modification_time: Utc::now(),
-            last_entry_id: "IGNORED".to_string(),
         }
     }
 }
 
 impl Display for WalletHolding {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Acct Bal for = {} | [REDACTED]", self.account_id)
+        write!(
+            f,
+            "Acct Bal for = {}**{} | [REDACTED]",
+            self.account_id, self.currency
+        )
     }
 }
