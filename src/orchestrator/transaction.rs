@@ -1,10 +1,10 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::{EntryType, MonetaryTransaction, TransactionType};
+use crate::core::{AccountStatus, Currency, EntryType, MonetaryTransaction, TransactionType};
 use crate::error::OrchestrateError;
-use crate::storage::save_monetary_tx;
+use crate::storage::{find_account_by_id, save_monetary_tx};
 use crate::{
-    commit_db_transaction, create_chained_block_chain, debit_wallet, rollback_db_transaction,
-    start_db_transaction,
+    commit_db_transaction, convert_amount, create_chained_block_chain, credit_wallet_holding,
+    debit_wallet, rollback_db_transaction, start_db_transaction,
 };
 use cassandra_cpp::Session;
 use rust_decimal::Decimal;
@@ -67,6 +67,15 @@ pub async fn perform_wallet_transaction(
     mut ledger_desc: Vec<String>,
 ) -> Result<MonetaryTransaction, OrchestrateError> {
     let mut db_tx = start_db_transaction(pool, event).await?;
+    let user_acct = find_account_by_id(&mut *db_tx, &account_id).await?;
+    if user_acct.locked
+        || user_acct.status == AccountStatus::Frozen
+        || user_acct.status == AccountStatus::Inactive
+    {
+        return Err(OrchestrateError::InvalidRecordState(
+            "the user's account is locked/frozen/inactive".to_string(),
+        ));
+    }
     ////// 1. Debit user wallet
     let debit_tx = MonetaryTransaction::payment(amount, account_id.clone());
     debit_wallet(&mut db_tx, amount, account_id.clone(), "todo".to_string()).await?;
@@ -81,7 +90,7 @@ pub async fn perform_wallet_transaction(
 
     // 2. Charge the user account with commission
     let commission = amount * Decimal::from_str("0.001").unwrap();
-    charge_commission(&account_id, commission, &mut db_tx).await?;
+    charge_commission(&account_id, commission, "TODO", &mut db_tx).await?;
 
     ledger_desc.push("charge user wallet with commission".to_string());
 
@@ -166,7 +175,34 @@ pub async fn credit_wallet(
 async fn charge_commission(
     acct_id: &str,
     amount: Decimal,
+    beneficiary_account_id: &str,
     db_tx: &mut Transaction<'_, Postgres>,
 ) -> Result<(), OrchestrateError> {
-    unimplemented!()
+    if amount.is_sign_negative() || amount.is_sign_positive() {
+        return Err(OrchestrateError::InvalidArgument(
+            "amount must be positive".to_string(),
+        ));
+    }
+
+    let user_acct = find_account_by_id(&mut **db_tx, &acct_id).await?;
+    if user_acct.locked
+        || user_acct.status == AccountStatus::Frozen
+        || user_acct.status == AccountStatus::Inactive
+    {
+        return Err(OrchestrateError::InvalidRecordState(
+            "the user's account is locked/frozen/inactive".to_string(),
+        ));
+    }
+
+    let system_acct = find_account_by_id(&mut **db_tx, &beneficiary_account_id).await?;
+    let amount_to_save = convert_amount(amount, Currency::ADA, system_acct.currency)?;
+
+    credit_wallet_holding(
+        &mut *db_tx,
+        amount_to_save,
+        system_acct.id,
+        "todo".to_string(),
+    )
+    .await?;
+    Ok(())
 }

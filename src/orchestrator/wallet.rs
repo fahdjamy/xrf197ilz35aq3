@@ -4,7 +4,7 @@ use crate::storage::{create_wallet, fetch_wallet, update_wallet_balance};
 use chrono::Utc;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
-use sqlx::{Executor, PgConnection, PgPool, Postgres};
+use sqlx::{Executor, PgConnection, Postgres, Transaction};
 
 pub async fn create_wallet_holding<'a, E>(
     pool: E,
@@ -36,7 +36,7 @@ where
 }
 
 pub async fn credit_wallet_holding(
-    pool: &PgPool,
+    db_tx: &mut Transaction<'_, Postgres>,
     amount: Decimal,
     acct_id: String,
     ledger_entry_id: String,
@@ -46,7 +46,7 @@ pub async fn credit_wallet_holding(
             "Amount cannot be zero".to_string(),
         ));
     }
-    let mut wallet_holding = match get_wallet_holding(pool, acct_id).await? {
+    let mut wallet_holding = match get_wallet_holding(&mut **db_tx, acct_id).await? {
         Some(wallet_holding) => wallet_holding,
         None => {
             return Err(OrchestrateError::NotFoundError(
@@ -59,7 +59,7 @@ pub async fn credit_wallet_holding(
     wallet_holding.last_entry_id = ledger_entry_id;
     wallet_holding.balance = wallet_holding.balance + amount;
 
-    let updated_wallet = update_wallet_balance(pool, &wallet_holding).await?;
+    let updated_wallet = update_wallet_balance(&mut **db_tx, &wallet_holding).await?;
 
     if updated_wallet.balance != wallet_holding.balance {
         return Ok(false);
