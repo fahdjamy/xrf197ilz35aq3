@@ -28,4 +28,7 @@ database:
     name: "xrf_ilz_ts_db"
     require_ssl: false
   redis:
-    name: local
+    password: ''
+    host_name: local
+    uri_scheme: local
+    require_tls: false

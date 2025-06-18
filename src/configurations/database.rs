@@ -6,8 +6,17 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 #[derive(Clone, Debug, Deserialize)]
 pub struct DatabaseConfig {
     pub postgres: PostgresConfig,
+    pub redis_config: RedisConfig,
     pub timescale: TimescaleConfig,
     pub cassandra: CassandraConfig,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct RedisConfig {
+    pub password: String,
+    pub host_name: String,
+    pub require_tls: bool,
+    pub uri_scheme: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
