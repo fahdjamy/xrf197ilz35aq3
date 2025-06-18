@@ -78,7 +78,7 @@ pub async fn perform_wallet_transaction(
     }
     ////// 1. Debit user wallet
     let debit_tx = MonetaryTransaction::payment(amount, account_id.clone());
-    debit_wallet(&mut db_tx, amount, account_id.clone(), "todo".to_string()).await?;
+    debit_wallet(&mut db_tx, amount, account_id.clone()).await?;
 
     let account_debited = save_monetary_tx(&mut *db_tx, &debit_tx).await?;
     if !account_debited {
@@ -197,12 +197,6 @@ async fn charge_commission(
     let system_acct = find_account_by_id(&mut **db_tx, &beneficiary_account_id).await?;
     let amount_to_save = convert_amount(amount, Currency::ADA, system_acct.currency)?;
 
-    credit_wallet_holding(
-        &mut *db_tx,
-        amount_to_save,
-        system_acct.id,
-        "todo".to_string(),
-    )
-    .await?;
+    credit_wallet_holding(&mut *db_tx, amount_to_save, system_acct.id).await?;
     Ok(())
 }
