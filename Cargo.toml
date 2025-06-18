@@ -33,6 +33,8 @@ rust_decimal = { version = "1.37.1", features = ["macros"] }
 
 cassandra-cpp = "3.0.2"
 
+redis = "0.32.0"
+
 [dependencies.sqlx]
 version = "0.8.6"
 default-features = false
