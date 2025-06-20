@@ -1,13 +1,25 @@
 use crate::core::Currency;
 use rust_decimal::Decimal;
 use sha3::{Digest, Sha3_256};
+use std::collections::HashMap;
 
 pub async fn get_exchange_rate(
     from_curr: Currency,
     to_currency: Currency,
 ) -> Result<Decimal, String> {
-    let _ = get_hash_code(&from_curr.to_string(), &to_currency.to_string());
-    unimplemented!()
+    let hash_code = get_hash_code(&from_curr.to_string(), &to_currency.to_string());
+    let mut hash_set: HashMap<String, Decimal> = HashMap::new();
+    if !hash_set.contains_key(hash_code.as_str()) {
+        hash_set.insert(hash_code.clone(), Decimal::from(0));
+    }
+
+    match hash_set.get(hash_code.as_str()) {
+        Some(hash) => Ok(*hash),
+        None => Err(format!(
+            "no currency rate found for {} to {}",
+            from_curr, to_currency
+        )),
+    }
 }
 
 /// Generates a unique identifier from two string slices.
