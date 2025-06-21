@@ -1,4 +1,4 @@
-use crate::core::{generate_str_id, Currency};
+use crate::core::{generate_str_id, BlockRegion, Currency};
 use crate::DomainError;
 use chrono::{DateTime, Utc};
 use rust_decimal::prelude::Zero;
@@ -155,6 +155,49 @@ impl Display for Account {
                 "Acct id={}, timezone={}, acctType={}",
                 self.id, self.timezone, self.account_type
             ),
+        )
+    }
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct ServiceAccount {
+    pub id: String,
+    pub timezone: String,
+    pub status: AccountStatus,
+    pub app_id: Option<String>,
+    pub account_type: AccountType,
+    pub creation_time: DateTime<Utc>,
+    pub modification_time: DateTime<Utc>,
+    pub block_region: Option<BlockRegion>,
+}
+
+impl ServiceAccount {
+    pub fn new(
+        timezone: String,
+        app_id: Option<String>,
+        account_type: AccountType,
+        block_region: Option<BlockRegion>,
+    ) -> ServiceAccount {
+        let now = Utc::now();
+        ServiceAccount {
+            app_id,
+            timezone,
+            block_region,
+            account_type,
+            creation_time: now,
+            id: generate_str_id(),
+            modification_time: now,
+            status: AccountStatus::Active,
+        }
+    }
+}
+
+impl Display for ServiceAccount {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Service account: acctId={} || status={}",
+            self.id, self.status
         )
     }
 }
