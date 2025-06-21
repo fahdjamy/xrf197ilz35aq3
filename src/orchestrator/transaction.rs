@@ -76,7 +76,13 @@ pub async fn perform_wallet_transaction(
             "the user's account is locked/frozen/inactive".to_string(),
         ));
     }
-    ////// 1. Debit user wallet
+
+    // 1. Charge the user account with commission
+    let commission = amount * Decimal::from_str("0.001").unwrap();
+    charge_commission(&account_id, commission, "TODO", &mut db_tx).await?;
+
+    ////// 2. Debit user wallet
+    let amount = amount - commission; // subtract commission from final amount
     let debit_tx = MonetaryTransaction::payment(amount, account_id.clone());
     debit_wallet(&mut db_tx, amount, account_id.clone()).await?;
 
@@ -87,10 +93,6 @@ pub async fn perform_wallet_transaction(
             "could not perform wallet transaction".to_string(),
         ));
     }
-
-    // 2. Charge the user account with commission
-    let commission = amount * Decimal::from_str("0.001").unwrap();
-    charge_commission(&account_id, commission, "TODO", &mut db_tx).await?;
 
     ledger_desc.push("charge user wallet with commission".to_string());
 

@@ -8,6 +8,7 @@ pub async fn get_exchange_rate(
     to_currency: Currency,
 ) -> Result<Decimal, String> {
     let hash_code = get_hash_code(&from_curr.to_string(), &to_currency.to_string());
+    // TODO: This should be coming from redis DB
     let mut hash_set: HashMap<String, Decimal> = HashMap::new();
     if !hash_set.contains_key(hash_code.as_str()) {
         hash_set.insert(hash_code.clone(), Decimal::from(0));

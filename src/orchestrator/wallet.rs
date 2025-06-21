@@ -5,6 +5,7 @@ use chrono::Utc;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
 use sqlx::{Executor, PgConnection, Postgres, Transaction};
+use std::ops::Add;
 
 pub async fn create_wallet_holding<'a, E>(
     pool: E,
@@ -56,7 +57,7 @@ pub async fn credit_wallet_holding(
     };
 
     wallet_holding.modification_time = Utc::now();
-    wallet_holding.balance = wallet_holding.balance + amount;
+    wallet_holding.balance = wallet_holding.balance.add(amount);
 
     let updated_wallet = update_wallet_balance(&mut **db_tx, &wallet_holding).await?;
 
