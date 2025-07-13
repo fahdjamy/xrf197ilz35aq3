@@ -1,3 +1,4 @@
+use crate::context::ApplicationContext;
 use crate::core::{Account, AccountStatus, AccountType, Currency};
 use crate::PgDatabaseError;
 use chrono::{DateTime, Utc};
@@ -103,4 +104,20 @@ FROM user_account WHERE id = $1
     .await?;
 
     Ok(saved_account.into())
+}
+
+#[tracing::instrument(
+    level = "debug",
+    // skip(pg_pool, app_ctx),
+    name = "Find beneficiary account by id"
+)]
+pub async fn create_beneficiary_account<'a, E>(
+    _: E,
+    _: ApplicationContext,
+) -> Result<bool, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    info!("finding beneficiary account with id");
+    unimplemented!()
 }
