@@ -162,10 +162,11 @@ impl Display for Account {
 #[derive(Serialize, Debug, Clone)]
 pub struct ServiceAccount {
     pub id: String,
-    pub timezone: String,
     pub status: AccountStatus,
     pub app_id: Option<String>,
     pub account_type: AccountType,
+    pub account_admins: Vec<String>,
+    pub account_holders: Vec<String>,
     pub creation_time: DateTime<Utc>,
     pub modification_time: DateTime<Utc>,
     pub block_region: Option<BlockRegion>,
@@ -173,17 +174,19 @@ pub struct ServiceAccount {
 
 impl ServiceAccount {
     pub fn new(
-        timezone: String,
         app_id: Option<String>,
         account_type: AccountType,
+        account_admins: Vec<String>,
+        account_holders: Vec<String>,
         block_region: Option<BlockRegion>,
     ) -> ServiceAccount {
         let now = Utc::now();
         ServiceAccount {
             app_id,
-            timezone,
             block_region,
             account_type,
+            account_admins,
+            account_holders,
             creation_time: now,
             id: generate_str_id(),
             modification_time: now,
