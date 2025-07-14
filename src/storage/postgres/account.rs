@@ -1,5 +1,5 @@
 use crate::context::ApplicationContext;
-use crate::core::{Account, AccountStatus, AccountType, Currency, ServiceAccount};
+use crate::core::{Account, AccountStatus, AccountType, BeneficiaryAccount, Currency};
 use crate::PgDatabaseError;
 use chrono::{DateTime, Utc};
 use sqlx::{Executor, Postgres};
@@ -113,7 +113,7 @@ FROM user_account WHERE id = $1
 )]
 pub async fn create_beneficiary_account<'a, E>(
     _: E,
-    _: ServiceAccount,
+    _: BeneficiaryAccount,
     _: ApplicationContext,
 ) -> Result<bool, PgDatabaseError>
 where

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS service_account
+CREATE TABLE IF NOT EXISTS beneficiary_account
 (
     id                VARCHAR(255)             NOT NULL PRIMARY KEY,
     locked            BOOLEAN                  NOT NULL DEFAULT FALSE,

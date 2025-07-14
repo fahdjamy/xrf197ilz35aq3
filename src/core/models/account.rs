@@ -160,7 +160,7 @@ impl Display for Account {
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct ServiceAccount {
+pub struct BeneficiaryAccount {
     pub id: String,
     pub status: AccountStatus,
     pub app_id: Option<String>,
@@ -172,16 +172,16 @@ pub struct ServiceAccount {
     pub block_region: Option<BlockRegion>,
 }
 
-impl ServiceAccount {
+impl BeneficiaryAccount {
     pub fn new(
         app_id: Option<String>,
         account_type: AccountType,
         account_admins: Vec<String>,
         account_holders: Vec<String>,
         block_region: Option<BlockRegion>,
-    ) -> ServiceAccount {
+    ) -> BeneficiaryAccount {
         let now = Utc::now();
-        ServiceAccount {
+        BeneficiaryAccount {
             app_id,
             block_region,
             account_type,
@@ -195,11 +195,11 @@ impl ServiceAccount {
     }
 }
 
-impl Display for ServiceAccount {
+impl Display for BeneficiaryAccount {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Service account: acctId={} || status={}",
+            "Beneficiary account: acctId={} || status={}",
             self.id, self.status
         )
     }

@@ -12,7 +12,7 @@ pub struct ApplicationContext {
     pub timestamp: u64,
     pub is_test_ctx: bool,
     pub block_region: BlockRegion,
-    pub service_account_id: String,
+    pub beneficiary_account_id: String,
     pub statements: PreparedAppStatements,
 }
 
@@ -21,7 +21,7 @@ impl ApplicationContext {
         app_id: u64,
         region: String,
         app_name: String,
-        service_account_id: String,
+        beneficiary_account_id: String,
         statements: PreparedAppStatements,
     ) -> Result<Self, String> {
         let block_region = match BlockRegion::from_str(&region) {
@@ -34,7 +34,7 @@ impl ApplicationContext {
             block_region,
             name: app_name,
             is_test_ctx: false,
-            service_account_id,
+            beneficiary_account_id: beneficiary_account_id,
             timestamp: Utc::now().timestamp() as u64,
         })
     }
@@ -53,7 +53,7 @@ impl ApplicationContext {
             is_test_ctx: true,
             name: Uuid::new_v4().to_string(),
             timestamp: Utc::now().timestamp() as u64,
-            service_account_id: "testAccountId".to_string(),
+            beneficiary_account_id: "testAccountId".to_string(),
         })
     }
 }
