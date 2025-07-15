@@ -109,12 +109,11 @@ FROM user_account WHERE id = $1
 #[tracing::instrument(
     level = "debug",
     // skip(pg_pool, app_ctx),
-    name = "Find beneficiary account by id"
+    name = "Save beneficiary account"
 )]
-pub async fn create_beneficiary_account<'a, E>(
+pub async fn save_beneficiary_account<'a, E>(
     _: E,
-    _: BeneficiaryAccount,
-    _: ApplicationContext,
+    _: &BeneficiaryAccount,
 ) -> Result<bool, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,

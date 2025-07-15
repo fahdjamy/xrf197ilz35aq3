@@ -6,7 +6,7 @@ mod ledger;
 mod transaction;
 mod wallet;
 
-pub use account::{find_account_by_id, save_account};
+pub use account::{find_account_by_id, save_account, save_beneficiary_account};
 pub use activity::{find_last_activity, save_activity};
 pub use chain::{add_child_cs_to_parent, find_chain_stamp_by_id, save_chain_stamp};
 pub use initialize::setup_postgres;
