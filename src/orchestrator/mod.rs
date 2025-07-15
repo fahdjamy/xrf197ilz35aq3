@@ -9,7 +9,7 @@ mod ledger;
 mod transaction;
 mod wallet;
 
-pub use account::create_account;
+pub use account::{create_account, create_new_beneficiary_acct};
 pub use activity::{create_activity, find_last_user_activity};
 pub use block::create_block;
 pub use blockchain::{create_chained_block_chain, create_initial_block_chain};
