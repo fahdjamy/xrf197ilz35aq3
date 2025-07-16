@@ -146,12 +146,12 @@ pub async fn create_new_beneficiary_acct(
     } else {
         rollback_db_transaction(db_tx, event).await?;
         return Err(OrchestrateError::ServerError(
-            "failed to create wallet holding".to_string(),
+            "failed to create wallet holding for a BEN account".to_string(),
         ));
     };
 
     let mut ledger_desc = Vec::new();
-    ledger_desc.push("initialization for newly created account".to_string());
+    ledger_desc.push("initialization for a newly created BEN account".to_string());
 
     let block = match create_initial_block_chain(
         beneficiary_acct.id.clone(),
@@ -175,7 +175,7 @@ pub async fn create_new_beneficiary_acct(
         }
     };
     info!(
-        "created new account with id: {} and blockId: {}",
+        "created new BEN account with id: {} and blockId: {}",
         beneficiary_acct.id, block.id
     );
 
