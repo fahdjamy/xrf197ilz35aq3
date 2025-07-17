@@ -1,4 +1,3 @@
-use crate::context::ApplicationContext;
 use crate::core::{Account, AccountStatus, AccountType, BeneficiaryAccount, Currency};
 use crate::PgDatabaseError;
 use chrono::{DateTime, Utc};
@@ -108,16 +107,43 @@ FROM user_account WHERE id = $1
 
 #[tracing::instrument(
     level = "debug",
-    // skip(pg_pool, app_ctx),
+    skip(pg_pool, ben_acct),
     name = "Save beneficiary account"
 )]
 pub async fn save_beneficiary_account<'a, E>(
-    _: E,
-    _: &BeneficiaryAccount,
+    pg_pool: E,
+    ben_acct: &BeneficiaryAccount,
 ) -> Result<bool, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
-    info!("finding beneficiary account with id");
-    unimplemented!()
+    info!("create new beneficiary account");
+    let result = sqlx::query!(
+        "
+INSERT INTO beneficiary_account (
+                                 id,
+                                 locked,
+                                 app_id,
+                                 creation_time,
+                                 modification_time,
+                                 admin_user_fps,
+                                 holders_user_fps,
+                                 status,
+                                 acct_type
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+",
+        ben_acct.id,
+        ben_acct.locked,
+        ben_acct.app_id,
+        ben_acct.creation_time,
+        ben_acct.modification_time,
+        &ben_acct.account_admins,
+        &ben_acct.account_holders,
+        ben_acct.status.clone() as AccountStatus,
+        ben_acct.account_type.clone() as AccountType
+    )
+    .execute(pg_pool)
+    .await?;
+    Ok(result.rows_affected() == 1)
 }

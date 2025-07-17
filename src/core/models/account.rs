@@ -162,6 +162,7 @@ impl Display for Account {
 #[derive(Serialize, Debug, Clone)]
 pub struct BeneficiaryAccount {
     pub id: String,
+    pub locked: bool,
     pub status: AccountStatus,
     pub app_id: Option<String>,
     pub account_type: AccountType,
@@ -185,6 +186,7 @@ impl BeneficiaryAccount {
             app_id,
             block_region,
             account_type,
+            locked: false,
             account_admins,
             account_holders,
             creation_time: now,
