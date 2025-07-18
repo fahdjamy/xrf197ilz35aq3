@@ -117,6 +117,16 @@ pub async fn create_new_beneficiary_acct(
     account_holders_fps: Vec<String>,
 ) -> Result<Option<BeneficiaryAccount>, OrchestrateError> {
     let event = "createNewBeneficiaryAccount";
+    if account_admins_fps.is_empty() {
+        return Err(OrchestrateError::InvalidArgument(
+            "account admins should not be empty".to_string(),
+        ));
+    }
+    if account_holders_fps.is_empty() {
+        return Err(OrchestrateError::InvalidArgument(
+            "account holders should not be empty".to_string(),
+        ));
+    }
 
     let mut db_tx = start_db_transaction(pool, event).await?;
 

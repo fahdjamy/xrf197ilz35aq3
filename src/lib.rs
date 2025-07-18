@@ -6,6 +6,7 @@ mod core;
 mod environment;
 mod error;
 mod orchestrator;
+mod server;
 pub mod storage;
 mod telemetry;
 
@@ -15,4 +16,5 @@ pub use constants::*;
 pub use environment::Environment;
 pub use error::{CassandraDBError, DomainError, PgDatabaseError};
 pub use orchestrator::*;
+pub use server::*;
 pub use telemetry::*;

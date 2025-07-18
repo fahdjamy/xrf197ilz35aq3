@@ -9,6 +9,12 @@ pub struct ApplicationConfig {
 }
 
 #[derive(Deserialize, Clone)]
+pub struct GrpcServerConfig {
+    pub port: String,
+    pub timeout: u16,
+}
+
+#[derive(Deserialize, Clone)]
 pub struct LogConfig {
     pub level: String,
     pub output: String,
@@ -20,6 +26,7 @@ pub struct LogConfig {
 pub struct Configurations {
     pub log: LogConfig,
     pub app: ApplicationConfig,
+    pub grpc: GrpcServerConfig,
     pub database: DatabaseConfig,
 }
 
