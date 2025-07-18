@@ -15,6 +15,11 @@ pub struct GrpcServerConfig {
 }
 
 #[derive(Deserialize, Clone)]
+pub struct ServerConfig {
+    pub grpc: GrpcServerConfig,
+}
+
+#[derive(Deserialize, Clone)]
 pub struct LogConfig {
     pub level: String,
     pub output: String,
@@ -25,8 +30,8 @@ pub struct LogConfig {
 #[derive(serde::Deserialize, Clone)]
 pub struct Configurations {
     pub log: LogConfig,
+    pub server: ServerConfig,
     pub app: ApplicationConfig,
-    pub grpc: GrpcServerConfig,
     pub database: DatabaseConfig,
 }
 

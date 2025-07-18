@@ -16,3 +16,8 @@ database:
     host_name: local
     uri_scheme: local
     require_tls: false
+
+server:
+  grpc:
+    port: 50051
+    timeout: 60
