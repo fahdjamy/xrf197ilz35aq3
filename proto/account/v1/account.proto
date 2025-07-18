@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package proto.account.v1;
+
+service AccountService {
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+}
+
+message CreateAccountRequest {
+  string name = 1;
+}
+
+message AccountResponse {
+  string version = 1;
+}
+
+message CreateAccountResponse {
+  string account_id = 1;
+}
+
+///// Create account
