@@ -1,7 +1,7 @@
 use crate::core::BlockRegion;
 use crate::storage::PreparedAppStatements;
 use chrono::Utc;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -11,6 +11,7 @@ pub struct ApplicationContext {
     pub name: String,
     pub timestamp: u64,
     pub is_test_ctx: bool,
+    pub app_env: Environment,
     pub block_region: BlockRegion,
     pub beneficiary_account_id: String,
     pub statements: PreparedAppStatements,
@@ -34,7 +35,8 @@ impl ApplicationContext {
             block_region,
             name: app_name,
             is_test_ctx: false,
-            beneficiary_account_id: beneficiary_account_id,
+            beneficiary_account_id,
+            app_env: Environment::Dev, // TODO: Change this and load environment
             timestamp: Utc::now().timestamp() as u64,
         })
     }
@@ -51,6 +53,7 @@ impl ApplicationContext {
             statements,
             block_region,
             is_test_ctx: true,
+            app_env: Environment::Test,
             name: Uuid::new_v4().to_string(),
             timestamp: Utc::now().timestamp() as u64,
             beneficiary_account_id: "testAccountId".to_string(),
@@ -61,5 +64,40 @@ impl ApplicationContext {
 impl Display for ApplicationContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "appId={} :: region={}", self.app_id, self.block_region)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Environment {
+    Dev,
+    Live,
+    Test,
+    Staging,
+    Production,
+}
+
+impl Environment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Environment::Dev => "dev",
+            Environment::Live => "live",
+            Environment::Test => "test",
+            Environment::Staging => "stg",
+            Environment::Production => "prod",
+        }
+    }
+
+    pub fn is_local(&self) -> bool {
+        *self == Environment::Dev
+    }
+
+    pub fn is_not_local(&self) -> bool {
+        !self.is_local()
+    }
+}
+
+impl Display for Environment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
