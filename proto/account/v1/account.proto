@@ -6,6 +6,7 @@ service AccountService {
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
 }
 
+///// Create account
 message CreateAccountRequest {
   string name = 1;
 }
@@ -17,5 +18,3 @@ message AccountResponse {
 message CreateAccountResponse {
   string account_id = 1;
 }
-
-///// Create account
