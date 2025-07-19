@@ -8,6 +8,12 @@ pub struct AccountServiceManager {
     pg_pool: Arc<PgPool>,
 }
 
+impl AccountServiceManager {
+    pub fn new(pg_pool: Arc<PgPool>) -> Self {
+        AccountServiceManager { pg_pool }
+    }
+}
+
 #[tonic::async_trait]
 impl AccountService for AccountServiceManager {
     async fn create_account(

@@ -1,9 +1,13 @@
 use crate::context::Environment;
+use crate::grpc_services::account_service_server::AccountServiceServer;
+use crate::server::grpc::AccountServiceManager;
 use crate::{GrpcServerConfig, CERT_PEM_PATH, KEY_PEM_PATH};
 use anyhow::Context;
 use bytes::Bytes;
+use sqlx::PgPool;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 use tonic::transport::{Identity, Server, ServerTlsConfig};
 use tracing::{debug, info, warn};
@@ -14,17 +18,23 @@ const SSL_PEM_SERVE_CERT_PATH: &str = "./local/secret/ssl/server.crt";
 pub struct GrpcServer {
     timeout: Duration,
     addr: core::net::SocketAddr,
+    account_service_manager: AccountServiceManager,
 }
 
 impl GrpcServer {
-    pub fn new(config: GrpcServerConfig) -> Result<Self, anyhow::Error> {
+    pub fn new(pg_pool: PgPool, config: GrpcServerConfig) -> Result<Self, anyhow::Error> {
         let addr = format!("[::]:{}", config.port)
             .parse()
             .context("Failed to parse grpc server address")?;
 
+        let pg_pool_arc = Arc::new(pg_pool);
+
+        let account_service_manager = AccountServiceManager::new(pg_pool_arc.clone());
+
         let config_timeout = config.timeout;
         Ok(GrpcServer {
             addr,
+            account_service_manager,
             timeout: Duration::from_millis(config_timeout as u64),
         })
     }
@@ -41,14 +51,14 @@ impl GrpcServer {
         let key_pem = load_pem_data(Path::new(key_path))?;
 
         info!("starting... gRPC server");
-        // Server::builder()
-        //     .tls_config(ServerTlsConfig::new().identity(Identity::from_pem(cert_pem, key_pem)))
-        //     .context("Failed to create TLS config")?
-        //     .max_connection_age(self.timeout)
-        //     .serve(self.addr)
-        //     .await
-        //     .context("gRPC server failed")
-        unimplemented!()
+        Server::builder()
+            .tls_config(ServerTlsConfig::new().identity(Identity::from_pem(cert_pem, key_pem)))
+            .context("Failed to create TLS config")?
+            .max_connection_age(self.timeout)
+            .add_service(AccountServiceServer::new(self.account_service_manager))
+            .serve(self.addr)
+            .await
+            .context("gRPC server failed")
     }
 }
 
