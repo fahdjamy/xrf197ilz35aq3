@@ -6,7 +6,7 @@ macro_rules! trace_request {
             .get(REQUEST_ID_KEY)
             .and_then(|id| id.to_str().ok())
             .map(|s| s.to_string())
-            .unwrap_or_else(|| "unknown".to_string());
+            .unwrap_or_else(|| generate_request_id());
 
         // Create span for this method, linked to the gRPC span by the request ID
         let span = info_span!($span_name, request_id = request_id);

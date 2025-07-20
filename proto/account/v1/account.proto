@@ -2,21 +2,31 @@ syntax = "proto3";
 
 package proto.account.v1;
 
+import "google/protobuf/timestamp.proto";
+
+
 service AccountService {
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
 }
 
 ///// Create account
 message CreateAccountRequest {
-  string name = 1;
-}
-
-message AccountResponse {
   string currency = 1;
   string acct_type = 2;
 }
 
+message WalletResponse {
+  float balance = 1;
+  string currency = 2;
+  string acct_type = 3;
+}
+
 message CreateAccountResponse {
-  string wallet_id = 1;
-  string account_id = 2;
+  bool locked = 1;
+  string status = 2;
+  string account_id = 3;
+  string account_type = 4;
+  google.protobuf.Timestamp creation_time = 5;
+  google.protobuf.Timestamp modification_time = 6;
+  WalletResponse wallet_holding = 7;
 }
