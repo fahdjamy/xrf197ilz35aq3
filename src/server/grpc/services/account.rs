@@ -1,8 +1,11 @@
 use crate::grpc_services::account_service_server::AccountService;
 use crate::grpc_services::{CreateAccountRequest, CreateAccountResponse};
+use crate::server::grpc::interceptors::trace_request;
+use crate::REQUEST_ID_KEY;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
+use tracing::info_span;
 
 pub struct AccountServiceManager {
     pg_pool: Arc<PgPool>,
@@ -20,6 +23,7 @@ impl AccountService for AccountServiceManager {
         &self,
         request: Request<CreateAccountRequest>,
     ) -> Result<Response<CreateAccountResponse>, Status> {
+        trace_request!(request, "create_account");
         let _ = request.into_inner();
         unimplemented!()
     }

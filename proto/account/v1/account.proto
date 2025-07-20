@@ -12,9 +12,11 @@ message CreateAccountRequest {
 }
 
 message AccountResponse {
-  string version = 1;
+  string currency = 1;
+  string acct_type = 2;
 }
 
 message CreateAccountResponse {
-  string account_id = 1;
+  string wallet_id = 1;
+  string account_id = 2;
 }

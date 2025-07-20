@@ -46,8 +46,6 @@ impl GrpcServer {
 
         //// Load the PEM-encoded data directly. Pem (Privacy-Enhanced Mail)
         let cert_pem = load_pem_data(Path::new(cert_path))?;
-        ///// This extension is conventionally used for files that contain only
-        //         // private keys. Again, it's still PEM-encoded data
         let key_pem = load_pem_data(Path::new(key_path))?;
 
         info!("starting... gRPC server");
