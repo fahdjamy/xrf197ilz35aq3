@@ -3576,6 +3576,7 @@ dependencies = [
  "cassandra-cpp",
  "chrono",
  "config",
+ "prost",
  "redis",
  "rust_decimal",
  "secrecy",

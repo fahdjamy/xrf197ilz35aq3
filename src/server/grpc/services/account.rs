@@ -20,6 +20,7 @@ impl AccountService for AccountServiceManager {
         &self,
         request: Request<CreateAccountRequest>,
     ) -> Result<Response<CreateAccountResponse>, Status> {
+        let _ = request.into_inner();
         unimplemented!()
     }
 }
