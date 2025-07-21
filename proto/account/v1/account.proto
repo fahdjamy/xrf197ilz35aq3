@@ -13,6 +13,7 @@ service AccountService {
 message CreateAccountRequest {
   string currency = 1;
   string acct_type = 2;
+  string timezone = 3;
 }
 
 message WalletResponse {

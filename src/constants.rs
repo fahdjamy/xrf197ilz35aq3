@@ -1,5 +1,7 @@
 // External var constants
 pub const XRF_Q3_ENV: &str = "XRF_ENV";
+pub const XRF_USER_FINGERPRINT: &str = "xrf-user-fp";
+
 pub const REQUEST_ID_KEY: &str = "request-id";
 pub const ILZ_Q3_ENV_KEY: &str = "XRF_Q3_API_KEY";
 pub const CLIENT_REQ_ID: &'static str = "request_id";

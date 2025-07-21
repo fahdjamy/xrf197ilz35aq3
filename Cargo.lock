@@ -3577,6 +3577,7 @@ dependencies = [
  "chrono",
  "config",
  "prost",
+ "prost-types",
  "redis",
  "rust_decimal",
  "secrecy",
