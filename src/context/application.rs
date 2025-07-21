@@ -3,9 +3,10 @@ use crate::storage::PreparedAppStatements;
 use chrono::Utc;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use std::sync::Arc;
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ApplicationContext {
     pub app_id: u64,
     pub name: String,
@@ -14,7 +15,7 @@ pub struct ApplicationContext {
     pub app_env: Environment,
     pub block_region: BlockRegion,
     pub beneficiary_account_id: String,
-    pub statements: PreparedAppStatements,
+    pub statements: Arc<PreparedAppStatements>,
 }
 
 impl ApplicationContext {
@@ -29,6 +30,7 @@ impl ApplicationContext {
             Ok(region) => region,
             Err(e) => return Err(e.to_string()),
         };
+        let statements = Arc::new(statements);
         Ok(ApplicationContext {
             app_id,
             statements,
@@ -48,6 +50,7 @@ impl ApplicationContext {
     ) -> Result<Self, String> {
         let block_region =
             BlockRegion::from_str(&region).unwrap_or_else(|_e| BlockRegion::MexicoCentral);
+        let statements = Arc::new(statements);
         Ok(ApplicationContext {
             app_id,
             statements,
@@ -62,7 +65,7 @@ impl ApplicationContext {
 }
 
 impl Display for ApplicationContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "appId={} :: region={}", self.app_id, self.block_region)
     }
 }
