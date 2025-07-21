@@ -19,7 +19,7 @@ message CreateAccountRequest {
 message WalletResponse {
   float balance = 1;
   string currency = 2;
-  string acct_type = 3;
+  google.protobuf.Timestamp modification_time = 3;
 }
 
 message CreateAccountResponse {
