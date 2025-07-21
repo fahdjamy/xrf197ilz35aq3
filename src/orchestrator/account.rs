@@ -8,7 +8,7 @@ use crate::{
     commit_db_transaction, create_initial_block_chain, rollback_db_transaction,
     start_db_transaction,
 };
-use cassandra_cpp::Session;
+use cassandra_cpp::{PreparedStatement, Session};
 use sqlx::{PgConnection, PgPool};
 use std::str::FromStr;
 use tracing::{error, info};
@@ -19,7 +19,7 @@ pub async fn create_account(
     acct_type: String,
     user_ctx: &UserContext,
     cassandra_session: &Session,
-    app_cxt: ApplicationContext,
+    app_cxt: &ApplicationContext,
 ) -> Result<(Account, WalletHolding), OrchestrateError> {
     let event = "createAccount";
     let mut db_tx = start_db_transaction(pool, event).await?;
@@ -54,8 +54,9 @@ pub async fn create_account(
         EntryType::Initialization,
         user_ctx,
         cassandra_session,
-        app_cxt,
+        &app_cxt,
         ledger_desc,
+        &app_cxt.statements.insert_block_stmt,
         &mut db_tx,
     )
     .await
@@ -112,9 +113,10 @@ pub async fn create_new_beneficiary_acct(
     currency: &String,
     user_ctx: &UserContext,
     cassandra_session: &Session,
-    app_cxt: ApplicationContext,
+    app_cxt: &ApplicationContext,
     account_admins_fps: Vec<String>,
     account_holders_fps: Vec<String>,
+    insert_block_stmt: &PreparedStatement,
 ) -> Result<Option<BeneficiaryAccount>, OrchestrateError> {
     let event = "createNewBeneficiaryAccount";
     if account_admins_fps.is_empty() {
@@ -170,6 +172,7 @@ pub async fn create_new_beneficiary_acct(
         cassandra_session,
         app_cxt,
         ledger_desc,
+        insert_block_stmt,
         &mut db_tx,
     )
     .await

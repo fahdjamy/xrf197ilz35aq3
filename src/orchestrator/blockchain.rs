@@ -7,16 +7,16 @@ use crate::{
     create_activity, create_chain_stamp, find_last_user_activity, DomainError,
     CREATE_NEW_USER_ACCOUNT,
 };
-use cassandra_cpp::Session;
+use cassandra_cpp::{PreparedStatement, Session};
 use sqlx::{Postgres, Transaction};
 use tracing::{info, log};
 
 pub async fn create_chained_block_chain(
     acct_id: String,
     entry: EntryType,
-    user_ctx: UserContext,
+    user_ctx: &UserContext,
     cassandra_session: &Session,
-    app_cxt: ApplicationContext,
+    app_cxt: &ApplicationContext,
     ledger_descriptions: Vec<String>,
     db_tx: &mut Transaction<'_, Postgres>,
 ) -> Result<Block, OrchestrateError> {
@@ -32,10 +32,11 @@ pub async fn create_chained_block_chain(
     create_block_chain(
         acct_id,
         entry,
-        &user_ctx,
+        user_ctx,
         cassandra_session,
-        app_cxt,
+        &app_cxt,
         ledger_descriptions,
+        &app_cxt.statements.insert_block_stmt,
         db_tx,
         Some(parent_chain_stamp),
     )
@@ -47,8 +48,9 @@ async fn create_block_chain(
     entry: EntryType,
     user_ctx: &UserContext,
     cassandra_session: &Session,
-    app_cxt: ApplicationContext,
+    app_cxt: &ApplicationContext,
     ledger_descriptions: Vec<String>,
+    insert_block_stmt: &PreparedStatement,
     db_tx: &mut Transaction<'_, Postgres>,
     parent_chain_stamp: Option<ChainStamp>,
 ) -> Result<Block, OrchestrateError> {
@@ -115,16 +117,12 @@ async fn create_block_chain(
     }
 
     ///// 6 save block to cassandra DB
-    let block_saved = save_block_chain(
-        &block,
-        cassandra_session,
-        app_cxt.statements.insert_block_stmt,
-    )
-    .await
-    .map_err(|err| {
-        log::error!("failed to save block to cassandra DB: {}", err);
-        OrchestrateError::ServerError(err.to_string())
-    })?;
+    let block_saved = save_block_chain(&block, cassandra_session, insert_block_stmt)
+        .await
+        .map_err(|err| {
+            log::error!("failed to save block to cassandra DB: {}", err);
+            OrchestrateError::ServerError(err.to_string())
+        })?;
 
     if !block_saved {
         return Err(OrchestrateError::ServerError(
@@ -139,8 +137,9 @@ pub async fn create_initial_block_chain(
     entry: EntryType,
     user_ctx: &UserContext,
     cassandra_session: &Session,
-    app_cxt: ApplicationContext,
+    app_cxt: &ApplicationContext,
     ledger_descriptions: Vec<String>,
+    insert_block_stmt: &PreparedStatement,
     db_tx: &mut Transaction<'_, Postgres>,
 ) -> Result<Block, OrchestrateError> {
     create_block_chain(
@@ -150,6 +149,7 @@ pub async fn create_initial_block_chain(
         cassandra_session,
         app_cxt,
         ledger_descriptions,
+        insert_block_stmt,
         db_tx,
         None,
     )

@@ -7,7 +7,7 @@ use cassandra_cpp::{
 pub async fn save_block_chain(
     block: &Block,
     session: &Session,
-    prepared_insert_stmt: PreparedStatement,
+    prepared_insert_stmt: &PreparedStatement,
 ) -> Result<bool, CassandraDBError> {
     let mut statement = prepared_insert_stmt.bind(); // Create a bound statement
     statement

@@ -17,9 +17,9 @@ pub async fn debit_wallet_transaction(
     amount: String,
     tx_type: String,
     account_id: String,
-    user_ctx: UserContext,
-    cassandra_session: Session,
-    app_cxt: ApplicationContext,
+    user_ctx: &UserContext,
+    cassandra_session: &Session,
+    app_cxt: &ApplicationContext,
 ) -> Result<MonetaryTransaction, OrchestrateError> {
     let event = "debitTransaction";
     let decimal_amount = Decimal::from_str(&amount).map_err(|_e| {
@@ -60,10 +60,10 @@ pub async fn perform_wallet_transaction(
     pool: &PgPool,
     amount: Decimal,
     account_id: String,
-    user_ctx: UserContext,
+    user_ctx: &UserContext,
     tx_entry_type: EntryType,
-    cassandra_session: Session,
-    app_cxt: ApplicationContext,
+    cassandra_session: &Session,
+    app_cxt: &ApplicationContext,
     mut ledger_desc: Vec<String>,
 ) -> Result<MonetaryTransaction, OrchestrateError> {
     let mut db_tx = start_db_transaction(pool, event).await?;
@@ -131,9 +131,9 @@ pub async fn credit_wallet(
     amount: String,
     tx_type: String,
     account_id: String,
-    user_ctx: UserContext,
-    cassandra_session: Session,
-    app_cxt: ApplicationContext,
+    user_ctx: &UserContext,
+    cassandra_session: &Session,
+    app_cxt: &ApplicationContext,
 ) -> Result<MonetaryTransaction, OrchestrateError> {
     let event = "debitTransaction";
     let decimal_amount = Decimal::from_str(&amount).map_err(|_e| {
