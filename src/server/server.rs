@@ -1,9 +1,10 @@
-use crate::context::Environment;
+use crate::context::{ApplicationContext, Environment};
 use crate::grpc_services::account_service_server::AccountServiceServer;
 use crate::server::grpc::AccountServiceManager;
 use crate::{GrpcServerConfig, CERT_PEM_PATH, KEY_PEM_PATH};
 use anyhow::Context;
 use bytes::Bytes;
+use cassandra_cpp::Session;
 use sqlx::PgPool;
 use std::fs;
 use std::path::Path;
@@ -22,14 +23,25 @@ pub struct GrpcServer {
 }
 
 impl GrpcServer {
-    pub fn new(pg_pool: PgPool, config: GrpcServerConfig) -> Result<Self, anyhow::Error> {
+    pub fn new(
+        pg_pool: PgPool,
+        config: GrpcServerConfig,
+        cassandra_session: Session,
+        app_ctx: ApplicationContext,
+    ) -> Result<Self, anyhow::Error> {
         let addr = format!("[::]:{}", config.port)
             .parse()
             .context("Failed to parse grpc server address")?;
 
         let pg_pool_arc = Arc::new(pg_pool);
+        let app_ctx = Arc::new(app_ctx);
+        let cassandra_session_arc = Arc::new(cassandra_session);
 
-        let account_service_manager = AccountServiceManager::new(pg_pool_arc.clone());
+        let account_service_manager = AccountServiceManager::new(
+            pg_pool_arc.clone(),
+            cassandra_session_arc.clone(),
+            app_ctx.clone(),
+        );
 
         let config_timeout = config.timeout;
         Ok(GrpcServer {

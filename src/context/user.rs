@@ -20,6 +20,21 @@ impl UserContext {
             timezone: "UTC".to_string(),
         }
     }
+
+    pub fn load_user_context(
+        user_fp: String,
+        timezone: String,
+        acct_id: Option<String>,
+        wallet: Option<WalletHolding>,
+    ) -> Self {
+        UserContext {
+            user_fp,
+            timezone,
+            is_test_ctx: false,
+            account_id: acct_id,
+            wallet_holding: wallet,
+        }
+    }
 }
 
 impl Display for UserContext {

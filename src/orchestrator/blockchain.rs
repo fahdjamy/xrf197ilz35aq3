@@ -15,7 +15,7 @@ pub async fn create_chained_block_chain(
     acct_id: String,
     entry: EntryType,
     user_ctx: UserContext,
-    cassandra_session: Session,
+    cassandra_session: &Session,
     app_cxt: ApplicationContext,
     ledger_descriptions: Vec<String>,
     db_tx: &mut Transaction<'_, Postgres>,
@@ -46,7 +46,7 @@ async fn create_block_chain(
     acct_id: String,
     entry: EntryType,
     user_ctx: &UserContext,
-    cassandra_session: Session,
+    cassandra_session: &Session,
     app_cxt: ApplicationContext,
     ledger_descriptions: Vec<String>,
     db_tx: &mut Transaction<'_, Postgres>,
@@ -81,7 +81,7 @@ async fn create_block_chain(
     //// Create a block for ledger-entry grouping. This block will contain the root chain_stamp
     let block = Block::build(
         app_cxt.app_id.to_string(),
-        app_cxt.block_region,
+        app_cxt.block_region.clone(),
         entry_ids,
         chain_stamp.stamp.clone(),
     )
@@ -137,8 +137,8 @@ async fn create_block_chain(
 pub async fn create_initial_block_chain(
     acct_id: String,
     entry: EntryType,
-    user_ctx: UserContext,
-    cassandra_session: Session,
+    user_ctx: &UserContext,
+    cassandra_session: &Session,
     app_cxt: ApplicationContext,
     ledger_descriptions: Vec<String>,
     db_tx: &mut Transaction<'_, Postgres>,
@@ -146,7 +146,7 @@ pub async fn create_initial_block_chain(
     create_block_chain(
         acct_id,
         entry,
-        &user_ctx,
+        user_ctx,
         cassandra_session,
         app_cxt,
         ledger_descriptions,

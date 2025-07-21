@@ -17,8 +17,8 @@ pub async fn create_account(
     pool: &PgPool,
     currency: String,
     acct_type: String,
-    user_ctx: UserContext,
-    cassandra_session: Session,
+    user_ctx: &UserContext,
+    cassandra_session: &Session,
     app_cxt: ApplicationContext,
 ) -> Result<(Account, WalletHolding), OrchestrateError> {
     let event = "createAccount";
@@ -110,8 +110,8 @@ async fn create_new_acct(
 pub async fn create_new_beneficiary_acct(
     pool: &PgPool,
     currency: &String,
-    user_ctx: UserContext,
-    cassandra_session: Session,
+    user_ctx: &UserContext,
+    cassandra_session: &Session,
     app_cxt: ApplicationContext,
     account_admins_fps: Vec<String>,
     account_holders_fps: Vec<String>,
