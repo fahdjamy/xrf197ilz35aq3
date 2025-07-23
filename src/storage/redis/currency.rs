@@ -4,8 +4,8 @@ use sha3::{Digest, Sha3_256};
 use std::collections::HashMap;
 
 pub async fn get_exchange_rate(
-    from_curr: Currency,
-    to_currency: Currency,
+    from_curr: &Currency,
+    to_currency: &Currency,
 ) -> Result<Decimal, String> {
     let hash_code = get_hash_code(&from_curr.to_string(), &to_currency.to_string());
     // TODO: This should be coming from redis DB
@@ -17,7 +17,7 @@ pub async fn get_exchange_rate(
     match hash_set.get(hash_code.as_str()) {
         Some(hash) => Ok(*hash),
         None => Err(format!(
-            "no currency rate found for {} to {}",
+            "no currency found for {} to {}",
             from_curr, to_currency
         )),
     }
