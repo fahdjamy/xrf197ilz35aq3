@@ -1,6 +1,7 @@
 mod account;
 mod activity;
 mod chain;
+mod currency;
 mod initialize;
 mod ledger;
 mod transaction;
