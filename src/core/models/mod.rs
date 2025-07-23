@@ -8,7 +8,7 @@ mod unique;
 
 pub use account::{Account, AccountStatus, AccountType, BeneficiaryAccount, WalletHolding};
 pub use block::{Block, BlockRegion};
-pub use currency::Currency;
+pub use currency::{Currency, CurrencyRate};
 pub use ledger::{EntryType, LedgerEntry};
 pub use transaction::{
     ActivityTransaction, MonetaryTransaction, TransactionStatus, TransactionType,

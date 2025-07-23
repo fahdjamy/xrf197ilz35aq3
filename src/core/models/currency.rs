@@ -1,4 +1,5 @@
 use crate::DomainError;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -97,5 +98,24 @@ impl Display for Currency {
             Currency::USDT => write!(f, "USDT"),
             Currency::NOTSUPPORTED => write!(f, "NOTSUPPORTED"),
         }
+    }
+}
+
+#[derive(sqlx::FromRow, Serialize, Deserialize, Clone, Debug)]
+pub struct CurrencyRate {
+    pub hash: String,
+    pub app_id: String,
+    pub base_currency: Currency,
+    pub quote_currency: Currency,
+    pub recorded_at: DateTime<Utc>,
+}
+
+impl Display for CurrencyRate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "appId={} :: base_currency={} :: quote_currency={}",
+            self.app_id, self.base_currency, self.quote_currency
+        )
     }
 }

@@ -34,3 +34,29 @@ where
     .await?;
     Ok(result)
 }
+
+#[tracing::instrument(level = "debug", skip(currency_rate, pool))]
+pub async fn save_currency_rate_record<'a, E>(
+    pool: E,
+    currency_rate: &CurrencyRate,
+) -> Result<bool, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    let result = sqlx::query!(
+        "
+INSERT INTO currency_rates(
+                           app_id, currencies_hash, base_currency, quote_currency, recorded_at
+                           )
+    VALUES ($1, $2, $3, $4, $5)",
+        currency_rate.app_id,
+        currency_rate.hash,
+        currency_rate.base_currency.clone() as Currency,
+        currency_rate.quote_currency.clone() as Currency,
+        currency_rate.recorded_at
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected() == 1)
+}
