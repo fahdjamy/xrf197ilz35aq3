@@ -197,7 +197,8 @@ async fn charge_commission(
     }
 
     let system_acct = find_account_by_id(&mut **db_tx, &beneficiary_account_id).await?;
-    let amount_to_save = convert_amount(amount, Currency::ADA, system_acct.currency)?;
+    let amount_to_save =
+        convert_amount(&mut **db_tx, amount, Currency::ADA, system_acct.currency).await?;
 
     credit_wallet_holding(&mut *db_tx, amount_to_save, system_acct.id).await?;
     Ok(())
