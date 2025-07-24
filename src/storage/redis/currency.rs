@@ -1,24 +1,42 @@
-use crate::core::Currency;
+use crate::core::{Currency, CurrencyRate};
+use redis::aio::ConnectionManager;
+use redis::AsyncTypedCommands;
 use rust_decimal::Decimal;
-use std::collections::HashMap;
-use tracing::{info, warn};
+use serde::Deserialize;
+use tracing::warn;
 
-pub fn get_exchange_rate(
+#[derive(Clone, Deserialize)]
+struct RedisCurrencyRate {
+    pub rate: Decimal,
+    pub app_id: String,
+    pub base_currency: Currency,
+    pub quote_currency: Currency,
+}
+
+pub async fn get_exchange_rate(
     currency_hash: String,
-    from_curr: &Currency,
-    to_currency: &Currency,
-) -> Option<Decimal> {
-    // TODO: This should be coming from redis DB
-    let mut hash_set: HashMap<String, Decimal> = HashMap::new();
-    if !hash_set.contains_key(currency_hash.as_str()) {
-        hash_set.insert(currency_hash.clone(), Decimal::from(0));
-    }
-
-    match hash_set.get(currency_hash.as_str()) {
-        Some(hash) => Some(*hash),
-        None => {
-            warn!("no currency found for {} to {}", from_curr, to_currency);
-            None
+    conn: &mut ConnectionManager,
+) -> Option<CurrencyRate> {
+    let fetched_redis_rates = match conn.get(currency_hash).await {
+        Ok(fetch_str) => match fetch_str {
+            None => {
+                return None;
+            }
+            Some(result_str) => result_str,
+        },
+        Err(err) => {
+            warn!("failed to get exchange rate: {}", err);
+            return None;
         }
-    }
+    };
+
+    // convert redis JSON to RedisCurrencyRate
+    let converted_curr_rate: CurrencyRate = match serde_json::from_str(&fetched_redis_rates) {
+        Ok(data) => data,
+        Err(err) => {
+            warn!("Failed to convert redis rate to CurrencyRate: {}", err);
+            return None;
+        }
+    };
+    Some(converted_curr_rate)
 }
