@@ -20,6 +20,7 @@ where
         CurrencyRate,
         r#"
     SELECT
+        rate,
         app_id,
         currencies_hash as hash,
         base_currency as "base_currency: Currency",
@@ -27,7 +28,9 @@ where
         recorded_at
 
     FROM currency_rates
-    WHERE currencies_hash = $1"#,
+    WHERE currencies_hash = $1
+    ORDER BY recorded_at DESC
+    LIMIT 1"#,
         currencies_hash
     )
     .fetch_optional(pool)
@@ -46,10 +49,11 @@ where
     let result = sqlx::query!(
         "
 INSERT INTO currency_rates(
-                           app_id, currencies_hash, base_currency, quote_currency, recorded_at
+                           app_id, rate, currencies_hash, base_currency, quote_currency, recorded_at
                            )
-    VALUES ($1, $2, $3, $4, $5)",
+    VALUES ($1, $2, $3, $4, $5, $6)",
         currency_rate.app_id,
+        currency_rate.rate,
         currency_rate.hash,
         currency_rate.base_currency.clone() as Currency,
         currency_rate.quote_currency.clone() as Currency,
