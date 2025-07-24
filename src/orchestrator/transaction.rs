@@ -7,6 +7,7 @@ use crate::{
     debit_wallet, rollback_db_transaction, start_db_transaction,
 };
 use cassandra_cpp::Session;
+use redis::aio::ConnectionManager;
 use rust_decimal::Decimal;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::str::FromStr;
@@ -79,7 +80,14 @@ pub async fn perform_wallet_transaction(
 
     // 1. Charge the user account with commission
     let commission = amount * Decimal::from_str("0.001").unwrap();
-    charge_commission(&account_id, commission, "TODO", &mut db_tx).await?;
+    charge_commission(
+        &account_id,
+        commission,
+        "TODO",
+        &mut app_cxt.redis_conn.clone(),
+        &mut db_tx,
+    )
+    .await?;
 
     ////// 2. Debit user wallet
     let amount = amount - commission; // subtract commission from final amount
@@ -178,6 +186,7 @@ async fn charge_commission(
     acct_id: &str,
     amount: Decimal,
     beneficiary_account_id: &str,
+    redis_conn: &mut ConnectionManager,
     db_tx: &mut Transaction<'_, Postgres>,
 ) -> Result<(), OrchestrateError> {
     if amount.is_sign_negative() || amount.is_sign_positive() {
@@ -197,8 +206,14 @@ async fn charge_commission(
     }
 
     let system_acct = find_account_by_id(&mut **db_tx, &beneficiary_account_id).await?;
-    let amount_to_save =
-        convert_amount(&mut **db_tx, amount, Currency::ADA, system_acct.currency).await?;
+    let amount_to_save = convert_amount(
+        &mut **db_tx,
+        amount,
+        Currency::ADA,
+        system_acct.currency,
+        redis_conn,
+    )
+    .await?;
 
     credit_wallet_holding(&mut *db_tx, amount_to_save, system_acct.id).await?;
     Ok(())
