@@ -2,4 +2,4 @@ mod connect;
 mod currency;
 
 pub use connect::get_redis_client;
-pub use currency::get_exchange_rate;
+pub use currency::{get_exchange_rate, save_exchange_rate};

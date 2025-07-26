@@ -40,3 +40,23 @@ pub async fn get_exchange_rate(
     };
     Some(converted_curr_rate)
 }
+
+pub async fn save_exchange_rate(
+    currency_rate: &CurrencyRate,
+    conn: &mut ConnectionManager,
+) -> Result<(), String> {
+    let currencies_hash = currency_rate.rate.to_string();
+    let currency_rate_json = serde_json::to_string(currency_rate).map_err(|err| {
+        return format!("Failed to serialize exchange rate: {}", err);
+    })?;
+
+    // save currency rate to REDIS
+    conn.set(currencies_hash, currency_rate_json)
+        .await
+        .map_err(|err| {
+            warn!("Failed to save exchange rate: {}", err);
+            return format!("Failed to save exchange rate: {}", err);
+        })?;
+
+    Ok(())
+}
