@@ -37,7 +37,7 @@ where
     E: Executor<'a, Database = Postgres>,
 {
     let hash_code = get_currency_hash(&from_currency.to_string(), &to_currency.to_string());
-    let rate = match get_exchange_rate(hash_code.clone(), conn).await {
+    let rate = match get_exchange_rate(&hash_code, conn).await {
         Some(redis_currency_rate) => redis_currency_rate.rate,
         None => match fetch_currency_rate(pg_pool, &hash_code).await? {
             None => {
