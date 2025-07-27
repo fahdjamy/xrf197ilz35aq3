@@ -57,17 +57,19 @@ mod tests {
     use crate::storage::{get_exchange_rate, get_redis_client};
     use crate::RedisConfig;
     use redis::aio::ConnectionManager;
+    use rust_decimal::Decimal;
     use testcontainers::core::{IntoContainerPort, WaitFor};
     use testcontainers::runners::AsyncRunner;
     use testcontainers::{ContainerAsync, GenericImage};
     use testcontainers_modules::redis::REDIS_PORT;
 
-    async fn setup_redis_test_container() -> GenericImage {
-        let image = GenericImage::new("redis", "latest")
+    async fn create_redis_img() -> ContainerAsync<GenericImage> {
+        GenericImage::new("redis", "latest")
             .with_exposed_port(6379.tcp())
-            .with_wait_for(WaitFor::message_on_stdout("Ready to accept connections"));
-
-        image
+            .with_wait_for(WaitFor::message_on_stdout("Ready to accept connections"))
+            .start()
+            .await
+            .expect("Failed to start container")
     }
 
     async fn start_redis_container(
@@ -91,9 +93,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn test_currency_exchange_rate() {
-        let image = setup_redis_test_container().await;
-        let redis_container = image.start().await.expect("Failed to start container");
-
+        let redis_container = create_redis_img().await;
         let mut conn_manager = start_redis_container(&redis_container).await;
 
         let response = get_exchange_rate("key", &mut conn_manager).await;
@@ -102,22 +102,9 @@ mod tests {
 
     #[tokio::test]
     pub async fn test_set_current_exchange_rate() {
-        let image = setup_redis_test_container().await;
-        let redis_container = image.start().await.expect("Failed to start container");
+        let redis_container = create_redis_img().await;
 
-        let host = redis_container
-            .get_host()
-            .await
-            .expect("Failed to get host");
-        let host_port = redis_container
-            .get_host_port_ipv4(REDIS_PORT)
-            .await
-            .expect("Failed to get host port");
-
-        let config = RedisConfig::test_config(host_port.to_string(), host.to_string());
-        let mut conn_manager = get_redis_client(&config)
-            .await
-            .expect("Failed to create redis client");
+        let mut conn_manager = start_redis_container(&redis_container).await;
 
         let currency_rate = CurrencyRate {
             rate: Default::default(),
@@ -133,8 +120,12 @@ mod tests {
             .expect("Failed to save exchange rate in DB");
 
         let response = get_exchange_rate(&currency_rate.hash, &mut conn_manager).await;
-        dbg!(&response);
 
         assert!(response.is_some());
+
+        let saved_currency_rate = response.unwrap();
+        assert_eq!(saved_currency_rate.rate, Decimal::default());
+        assert_eq!(saved_currency_rate.base_currency, Currency::USD);
+        assert_eq!(saved_currency_rate.quote_currency, Currency::USD);
     }
 }
