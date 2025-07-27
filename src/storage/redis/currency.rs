@@ -1,17 +1,7 @@
-use crate::core::{Currency, CurrencyRate};
+use crate::core::CurrencyRate;
 use redis::aio::ConnectionManager;
 use redis::AsyncTypedCommands;
-use rust_decimal::Decimal;
-use serde::Deserialize;
 use tracing::warn;
-
-#[derive(Clone, Deserialize)]
-struct RedisCurrencyRate {
-    pub rate: Decimal,
-    pub app_id: String,
-    pub base_currency: Currency,
-    pub quote_currency: Currency,
-}
 
 pub async fn get_exchange_rate(
     currency_hash: String,
