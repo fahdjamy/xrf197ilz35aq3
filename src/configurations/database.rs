@@ -13,10 +13,25 @@ pub struct DatabaseConfig {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct RedisConfig {
+    pub port: String,
     pub password: String,
-    pub host_name: String,
+    pub username: String,
+    pub hostname: String,
     pub require_tls: bool,
     pub uri_scheme: String,
+}
+
+impl RedisConfig {
+    pub fn test_config(port: String, hostname: String) -> Self {
+        RedisConfig {
+            port,
+            hostname,
+            require_tls: false,
+            password: "".to_string(),
+            username: "".to_string(),
+            uri_scheme: "redis".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]

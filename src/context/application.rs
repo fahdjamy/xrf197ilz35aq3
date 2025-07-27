@@ -43,7 +43,7 @@ impl ApplicationContext {
         region: String,
         app_name: String,
         ben_account_id: String,
-        redis_config: RedisConfig,
+        redis_config: &RedisConfig,
         statements: PreparedAppStatements,
     ) -> Result<Self, String> {
         let block_region = match BlockRegion::from_str(&region) {
@@ -69,7 +69,7 @@ impl ApplicationContext {
     pub async fn load_test_ctx(
         app_id: u64,
         region: String,
-        redis_config: RedisConfig,
+        redis_config: &RedisConfig,
         statements: PreparedAppStatements,
     ) -> Result<Self, String> {
         let block_region =
