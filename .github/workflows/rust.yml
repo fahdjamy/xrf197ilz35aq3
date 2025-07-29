@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "develop" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "develop" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,7 +18,7 @@ jobs:
   build_and_test:
     strategy:
       matrix:
-        os: [ macos-latest ] # Matrix with only macOS for now
+        os: [ ubuntu-latest ] # Matrix with only ubuntu for now
       fail-fast: false # Optional: set to false if you want all matrix jobs to complete even if one fails
 
     runs-on: ${{ matrix.os }} # Use the OS from the matrix
@@ -41,228 +41,68 @@ jobs:
           toolchain: stable # Or your specific toolchain version
           profile: minimal
 
-      # --- PostgresSQL Setup via Homebrew (macOS) ---
-      - name: Install and Start PostgresSQL (macOS via Homebrew)
-        if: runner.os == 'macOS'
+      # --- PostgresSQL Setup via apt (Ubuntu) ---
+      - name: Install and Start Postgres SQL (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
-          echo "Setting up PostgreSQL on macOS using Homebrew..."
-          brew install postgresql@15 # Using PostgreSQL 15 as an example
+          echo "Setting up PostgreSQL on Ubuntu..."
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql postgresql-contrib
+          sudo systemctl start postgresql
           
-          echo "Starting PostgreSQL service via Homebrew..."
-          # This command also handles initdb if it's the first time.
-          brew services start postgresql@15
+          echo "Creating database and user..."
+          # Create a user and grant superuser for CI simplicity
+          sudo -u postgres createuser --superuser ${{ env.POSTGRES_USER }}
+          # Set the password for the new user
+          sudo -u postgres psql -c "ALTER USER ${{ env.POSTGRES_USER }} WITH PASSWORD '${{ env.POSTGRES_PASSWORD }}';"
+          # Create the database owned by the new user
+          sudo -u postgres createdb -O ${{ env.POSTGRES_USER }} ${{ env.POSTGRES_DB }}
           
-          echo "Waiting for Homebrew PostgreSQL to initialize and start (increased wait)..."
-          sleep 5 # Increased initial wait for initdb and service startup
-
-          echo "Ensuring PostgreSQL client tools are on PATH..."
-          PG_BIN_DIR=""
-          # Check common Homebrew paths for PostgreSQL binaries
-          if [ -d "/opt/homebrew/opt/postgresql@15/bin" ]; then # Apple Silicon
-            PG_BIN_DIR="/opt/homebrew/opt/postgresql@15/bin"
-          elif [ -d "/usr/local/opt/postgresql@15/bin" ]; then # Intel
-            PG_BIN_DIR="/usr/local/opt/postgresql@15/bin"
-          fi
-
-          if [ ! -z "$PG_BIN_DIR" ] && [[ ":$PATH:" != *":$PG_BIN_DIR:"* ]]; then
-            echo "Adding $PG_BIN_DIR to GITHUB_PATH and current PATH"
-            echo "$PG_BIN_DIR" >> $GITHUB_PATH
-            export PATH="$PG_BIN_DIR:$PATH" # Also for current script execution
-          fi
-          
-          # Verify client tools are found
-          which psql || (echo "ERROR: psql not found in PATH! Current PATH: $PATH" && exit 1)
-          which createdb || (echo "ERROR: createdb not found in PATH!" && exit 1)
-          which pg_isready || (echo "ERROR: pg_isready not found in PATH!" && exit 1)
-
-          # The user running the script (runner on GitHub Actions) should be the default superuser
-          # after Homebrew initializes the PostgreSQL cluster.
-          PSQL_ADMIN_USER=$(whoami) # This will be 'runner'
-          DB_NAME="${{ env.POSTGRES_DB }}"
-          APP_USER="${{ env.POSTGRES_USER }}"
-          APP_PASSWORD="${{ env.POSTGRES_PASSWORD }}"
-
-          echo "Attempting to create database '$DB_NAME' using admin user '$PSQL_ADMIN_USER'..."
-          # Check if database exists first using the 'postgres' database for the connection
-          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
-            echo "Database '$DB_NAME' already exists."
-          else
-            echo "Database '$DB_NAME' does not exist. Creating..."
-            if ! createdb -h localhost -p 5432 -U "$PSQL_ADMIN_USER" "$DB_NAME"; then
-              echo "ERROR: Failed to create database '$DB_NAME' with user '$PSQL_ADMIN_USER'."
-              # Attempt to print PostgreSQL server logs for more clues
-              echo "Attempting to print PostgreSQL logs..."
-              if [ -d "$(brew --prefix)/var/log" ]; then cat $(brew --prefix)/var/log/postgres.log || echo "Could not cat main log."; fi
-              if [ -d "$(brew --prefix)/var/postgresql@15" ]; then cat $(brew --prefix)/var/postgresql@15.log || echo "Could not cat versioned log."; fi
+          echo "Waiting for PostgreSQL to be ready..."
+          timeout=60
+          until pg_isready -h localhost -p 5432 -U "${{ env.POSTGRES_USER }}" -d "${{ env.POSTGRES_DB }}"; do
+            timeout=$((timeout - 5))
+            if [ $timeout -le 0 ]; then
+              echo "PostgreSQL did not become ready in time."
+              # Optional: Show logs
+              sudo tail -n 50 /var/log/postgresql/postgresql-*-main.log
               exit 1
             fi
-            echo "Database '$DB_NAME' created successfully."
-          fi
-
-          echo "Attempting to create or update user '$APP_USER' using admin user '$PSQL_ADMIN_USER' (connecting to 'postgres' db)..."
-          # Check if user exists by connecting to the 'postgres' database
-          if psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = '$APP_USER'" | grep -q 1; then
-            echo "User '$APP_USER' already exists. Altering password and ensuring SUPERUSER attribute (for CI simplicity)."
-            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -c "ALTER USER \"$APP_USER\" WITH PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
-              echo "ERROR: Failed to alter user '$APP_USER'."
-              exit 1
-            fi
-            echo "User '$APP_USER' altered successfully."
-          else
-            echo "User '$APP_USER' does not exist. Creating with SUPERUSER attribute (for CI simplicity)..."
-            if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -c "CREATE USER \"$APP_USER\" WITH LOGIN PASSWORD '$APP_PASSWORD' SUPERUSER;"; then
-              echo "ERROR: Failed to create user '$APP_USER'."
-              exit 1
-            fi
-            echo "User '$APP_USER' created successfully."
-          fi
-          
-          # Grant all privileges on the specific database to the app user.
-          echo "Granting ALL PRIVILEGES on database '$DB_NAME' to user '$APP_USER' (using admin '$PSQL_ADMIN_USER', connecting to 'postgres' db)..."
-          if ! psql -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"$DB_NAME\" TO \"$APP_USER\";"; then
-              echo "ERROR: Failed to grant privileges to user '$APP_USER' on database '$DB_NAME'."
-              # exit 1 # Not exiting here as superuser status might be sufficient
-          else
-              echo "Privileges granted successfully."
-          fi
-
-          echo "Verifying PostgreSQL readiness for user '$APP_USER' on database '$DB_NAME'..."
-          timeout=120 # 2 minutes
-          interval=5  # check every 5 seconds
-          elapsed=0
-          
-          PG_ISREADY_CMD="pg_isready -h localhost -p 5432 -U \"$APP_USER\" -d \"$DB_NAME\" -q"
-          
-          while ! $PG_ISREADY_CMD; do
-            if [ $elapsed -ge $timeout ]; then
-              echo "Homebrew PostgreSQL did not become accessible with user '$APP_USER'/db '$DB_NAME' within $timeout seconds."
-              echo "Command used for check: $PG_ISREADY_CMD"
-              echo "PostgreSQL logs (if accessible via brew log path):"
-              if [ -d "$(brew --prefix)/var/log" ]; then ls -la $(brew --prefix)/var/log; cat $(brew --prefix)/var/log/postgres.log || echo "Could not cat main log."; fi
-              if [ -d "$(brew --prefix)/var/postgresql@15" ]; then cat $(brew --prefix)/var/postgresql@15.log || echo "Could not cat versioned log."; fi
-              # Check general server status as admin
-              echo "Checking general server status with admin user '$PSQL_ADMIN_USER' (connecting to 'postgres' db):"
-              pg_isready -h localhost -p 5432 -U "$PSQL_ADMIN_USER" -d postgres -q || echo "Server also not ready for admin user '$PSQL_ADMIN_USER'."
-              exit 1
-            fi
-            echo "Homebrew PostgreSQL not ready yet for $APP_USER@$DB_NAME (checking with: $PG_ISREADY_CMD), waiting ($elapsed/$timeout s)..."
-            sleep $interval
-            elapsed=$((elapsed + interval))
+            sleep 5
           done
-          echo "Homebrew PostgreSQL started and accessible with user '$APP_USER' on database '$DB_NAME'."
+          echo "PostgreSQL is ready and accessible."
 
-      # --- Cassandra Setup (macOS) ---
-      - name: Install and Start Cassandra (macOS)
-        if: runner.os == 'macOS'
+      # --- Cassandra Setup via apt (Ubuntu) ---
+      - name: Install and Start Cassandra (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
-          echo "Installing Cassandra on macOS..."
-          brew install cassandra
+          echo "Adding Apache Cassandra repository..."
+          # Add the official repository as it's not in the default sources
+          sudo apt-get install -y apt-transport-https gnupg2
+          curl https://downloads.apache.org/cassandra/KEYS | sudo apt-key add -
+          sudo sh -c 'echo "deb https://downloads.apache.org/cassandra/debian 41x main" > /etc/apt/sources.list.d/cassandra.list'
           
-          echo "Installing OpenJDK 11 for Cassandra compatibility..."
-          brew install openjdk@11
+          echo "Installing Cassandra and OpenJDK 11..."
+          sudo apt-get update -y
+          sudo apt-get install -y cassandra openjdk-11-jdk
           
-          echo "Configuring JAVA_HOME for Cassandra to use OpenJDK 11..."
-          # Explicitly set JAVA_HOME to Homebrew's OpenJDK 11 path
-          # For Apple Silicon
-          if [ -d "/opt/homebrew/opt/openjdk@11/libexec/openjdk.jdk/Contents/Home" ]; then
-            CASSANDRA_JAVA_HOME="/opt/homebrew/opt/openjdk@11/libexec/openjdk.jdk/Contents/Home"
-          # For Intel Macs
-          elif [ -d "/usr/local/opt/openjdk@11/libexec/openjdk.jdk/Contents/Home" ]; then
-            CASSANDRA_JAVA_HOME="/usr/local/opt/openjdk@11/libexec/openjdk.jdk/Contents/Home"
-          else
-            echo "ERROR: Homebrew OpenJDK 11 not found in expected locations. Cassandra might fail."
-            # Fallback to system java_home if specific version not found, but this might be the problematic newer Java
-            if [ -x "/usr/libexec/java_home" ]; then
-               CASSANDRA_JAVA_HOME=$(/usr/libexec/java_home)
-               echo "WARNING: Falling back to system java_home: $CASSANDRA_JAVA_HOME. This might be a newer Java version."
-            else
-               CASSANDRA_JAVA_HOME="" # Ensure it's empty if no Java found
-            fi
-          fi
+          # Set JAVA_HOME for the rest of the job
+          echo "JAVA_HOME=$(update-java-alternatives -l | head -n 1 | awk '{print $3}')" >> $GITHUB_ENV
           
-          if [ ! -z "$CASSANDRA_JAVA_HOME" ]; then
-              echo "Setting and exporting JAVA_HOME to $CASSANDRA_JAVA_HOME"
-              export JAVA_HOME="$CASSANDRA_JAVA_HOME" # Export for current script and sub-processes
-              echo "JAVA_HOME=$CASSANDRA_JAVA_HOME" >> $GITHUB_ENV # For subsequent steps
-              echo "Java version in use for Cassandra:"
-              "$JAVA_HOME/bin/java" -version || java -version # Attempt to print version
-          else
-            echo "CRITICAL WARNING: JAVA_HOME could not be set. Cassandra will likely fail to start."
-          fi
-          
-          echo "Starting Cassandra in the background..."
-          cassandra -R -f &
-          CASSANDRA_PID=$! 
-          
-          echo "Cassandra process started with PID $CASSANDRA_PID. Waiting 15 seconds for initial Cassandra bootstrap..."
-          sleep 15
-          
-          echo "Checking if Cassandra process $CASSANDRA_PID is still running..."
-          if ! ps -p $CASSANDRA_PID > /dev/null; then
-            echo "ERROR: Cassandra process $CASSANDRA_PID is not running after startup attempt."
-            echo "Attempting to print Cassandra logs (if they exist):"
-            CASSANDRA_LOG_DIR="$(brew --prefix)/var/log/cassandra" # Homebrew's Cassandra log dir
-            # Cassandra itself might log to a different default location if not configured by brew
-            # e.g., /usr/local/var/log/cassandra or similar based on cassandra.yaml
-            if [ -z "$CASSANDRA_LOG_DIR" ] || [ ! -d "$CASSANDRA_LOG_DIR" ]; then
-                # Try another common default if brew prefix one isn't there
-                ALT_CASSANDRA_LOG_DIR="/usr/local/var/log/cassandra" # A common default before Homebrew prefixing became strict
-                if [ -d "$ALT_CASSANDRA_LOG_DIR" ]; then CASSANDRA_LOG_DIR="$ALT_CASSANDRA_LOG_DIR"; fi
-            fi
-          
-            if [ -d "$CASSANDRA_LOG_DIR" ]; then
-              echo "Contents of $CASSANDRA_LOG_DIR:"
-              ls -la "$CASSANDRA_LOG_DIR"
-              echo "--- system.log ---"
-              cat "$CASSANDRA_LOG_DIR/system.log" || echo "Could not cat system.log"
-              echo "--- debug.log ---"
-              cat "$CASSANDRA_LOG_DIR/debug.log" || echo "Could not cat debug.log"
-            else
-              echo "Cassandra log directory not found at $CASSANDRA_LOG_DIR or common alternatives."
-            fi
-            exit 1
-          fi
-          echo "Cassandra process $CASSANDRA_PID is running. Proceeding to nodetool check."
+          echo "Starting Cassandra service..."
+          sudo service cassandra start
           
           echo "Waiting for Cassandra to become fully operational..."
-          timeout=240 
+          timeout=240
           interval=15
           elapsed=0
-          
-          NODETOOL_PATH=""
-          if [ -x "$(brew --prefix cassandra)/bin/nodetool" ]; then
-            NODETOOL_PATH="$(brew --prefix cassandra)/bin/nodetool"
-          elif [ -x "/opt/homebrew/bin/nodetool" ]; then 
-             NODETOOL_PATH="/opt/homebrew/bin/nodetool"
-          elif [ -x "/usr/local/bin/nodetool" ]; then 
-             NODETOOL_PATH="/usr/local/bin/nodetool"
-          else
-            echo "nodetool not found in common brew paths! Attempting 'nodetool' directly."
-            NODETOOL_PATH="nodetool" 
-          fi
-          echo "Using nodetool path: $NODETOOL_PATH"
-          
-          while ! $NODETOOL_PATH status > /dev/null 2>&1; do
+          while ! nodetool status > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
               echo "Cassandra did not become operational (nodetool status failed) within $timeout seconds."
               echo "Final nodetool status output:"
-              $NODETOOL_PATH status || echo "nodetool status command also failed to execute."
-              echo "Attempting to print Cassandra logs:"
-              CASSANDRA_LOG_DIR="$(brew --prefix)/var/log/cassandra"
-              if [ -z "$CASSANDRA_LOG_DIR" ] || [ ! -d "$CASSANDRA_LOG_DIR" ]; then
-                ALT_CASSANDRA_LOG_DIR="/usr/local/var/log/cassandra"
-                if [ -d "$ALT_CASSANDRA_LOG_DIR" ]; then CASSANDRA_LOG_DIR="$ALT_CASSANDRA_LOG_DIR"; fi
-              fi
-              if [ -d "$CASSANDRA_LOG_DIR" ]; then
-                echo "Contents of $CASSANDRA_LOG_DIR:"
-                ls -la "$CASSANDRA_LOG_DIR"
-                echo "--- system.log (last 50 lines) ---"
-                tail -n 50 "$CASSANDRA_LOG_DIR/system.log" || echo "Could not tail system.log"
-                echo "--- debug.log (last 50 lines) ---"
-                tail -n 50 "$CASSANDRA_LOG_DIR/debug.log" || echo "Could not tail debug.log"
-              else
-                echo "Cassandra log directory not found at $CASSANDRA_LOG_DIR or common alternatives."
-              fi
+              nodetool status || echo "nodetool status command also failed to execute."
+              echo "--- Cassandra system.log (last 50 lines) ---"
+              sudo tail -n 50 /var/log/cassandra/system.log
               exit 1
             fi
             echo "Cassandra not up yet (nodetool status), waiting ($elapsed/$timeout s)..."
@@ -270,32 +110,32 @@ jobs:
             elapsed=$((elapsed + interval))
           done
           echo "Cassandra started successfully and nodetool status is OK."
-          $NODETOOL_PATH status
+          nodetool status
 
-      # --- Cassandra C++ Driver Installation (macOS) ---
+      # --- Cassandra C++ Driver Installation (Ubuntu) ---
       - name: Install Cassandra C++ Driver (macOS)
-        if: runner.os == 'macOS'
+        if: runner.os == 'Linux'
         run: |
-          echo "Installing Cassandra C++ Driver on macOS..."
-          brew update || echo "Brew update potentially failed, attempting to continue..."
-          brew install cassandra-cpp-driver libuv openssl pkg-config cmake
-          echo "Finished: Install Cassandra C++ Driver (macOS)"
+          echo "Installing Cassandra C++ Driver on Ubuntu..."
+          # libgssapi-krb5-2 is a runtime dependency for the driver
+          sudo apt-get install -y libuv1-dev libssl-dev cmake pkg-config libgssapi-krb5-2 libcassandra-cpp-driver-dev
+          echo "Finished: Install Cassandra C++ Driver (Ubuntu)"
 
-      # --- Set Environment Variables for Rust Build (macOS) ---
-      - name: Set Build Environment Variables (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          echo "Setting macOS build environment variables..."
-          OPENSSL_PREFIX=$(brew --prefix openssl)
-          
-          # Prepend Homebrew paths and OpenSSL specific paths
-          echo "LIBRARY_PATH=$(brew --prefix)/lib:$OPENSSL_PREFIX/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" >> $GITHUB_ENV
-          echo "CPATH=$(brew --prefix)/include:$OPENSSL_PREFIX/include${CPATH:+:$CPATH}" >> $GITHUB_ENV
-          
-          echo "OPENSSL_ROOT_DIR=$OPENSSL_PREFIX" >> $GITHUB_ENV
-          echo "OPENSSL_LIB_DIR=$OPENSSL_PREFIX/lib" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include" >> $GITHUB_ENV
-          echo "*** macOS ENV Vars Set ***"
+      #      # --- Set Environment Variables for Rust Build (macOS) ---
+      #      - name: Set Build Environment Variables (macOS)
+      #        if: runner.os == 'macOS'
+      #        run: |
+      #          echo "Setting macOS build environment variables..."
+      #          OPENSSL_PREFIX=$(brew --prefix openssl)
+      #
+      #          # Prepend Homebrew paths and OpenSSL specific paths
+      #          echo "LIBRARY_PATH=$(brew --prefix)/lib:$OPENSSL_PREFIX/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" >> $GITHUB_ENV
+      #          echo "CPATH=$(brew --prefix)/include:$OPENSSL_PREFIX/include${CPATH:+:$CPATH}" >> $GITHUB_ENV
+      #
+      #          echo "OPENSSL_ROOT_DIR=$OPENSSL_PREFIX" >> $GITHUB_ENV
+      #          echo "OPENSSL_LIB_DIR=$OPENSSL_PREFIX/lib" >> $GITHUB_ENV
+      #          echo "OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include" >> $GITHUB_ENV
+      #          echo "*** macOS ENV Vars Set ***"
 
       # --- Run SQL Migrations ---
       - name: Run SQL Migrations (PostgresSQL)
@@ -305,22 +145,20 @@ jobs:
         # Example: If using sqlx-cli, and it's not installed globally, run:
         # cargo install sqlx-cli --no-default-features --features native-tls,postgres
         run: |
-          echo "Running PostgresSQL migrations..."
-          echo "Attempting to run migrations with sqlx-cli (example)..."
+          echo "Running PostgresSQL migrations... Attempting to run migrations with sqlx-cli ..."
           if ! command -v sqlx &> /dev/null
           then
-              echo "sqlx-cli not found, attempting to install..."
-              cargo install sqlx-cli --no-default-features --features native-tls,postgres
-              # Verify installation
-              if ! command -v sqlx &> /dev/null
-              then
-                  echo "Failed to install sqlx-cli. Please ensure your migration tool is available."
-                  exit 1
-              fi
+            echo "sqlx-cli not found, installing..."
+            cargo install sqlx-cli --no-default-features --features native-tls,postgres
+            # Verify installation
+            if ! command -v sqlx &> /dev/null
+            then
+              echo "Failed to install sqlx-cli. Please ensure your migration tool is available."
+              exit 1
+            fi
           fi
           
-          # Assuming the migrations are in a dir named 'migrations' at the root of your project:
-          # The DATABASE_URL environment variable is already set for the job.
+          # Assumes the migrations are in root at './migrations' and The DATABASE_URL env variable is already set.
           sqlx migrate run --source ./migrations 
           
           echo "PostgresSQL migrations completed."
