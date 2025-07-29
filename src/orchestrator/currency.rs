@@ -1,9 +1,68 @@
-use crate::core::{get_currency_hash, Currency};
+use crate::context::ApplicationContext;
+use crate::core::{get_currency_hash, Currency, CurrencyRate};
 use crate::error::OrchestrateError;
-use crate::storage::{fetch_currency_rate, get_exchange_rate};
+use crate::storage::{
+    fetch_currency_rate, get_exchange_rate, save_currency_rate_record, save_exchange_rate,
+};
 use redis::aio::ConnectionManager;
 use rust_decimal::Decimal;
 use sqlx::{Executor, Postgres};
+use tracing::warn;
+
+pub async fn save_currencies_rate<'a, E>(
+    pg_pool: E,
+    rate: Decimal,
+    base_currency: Currency,
+    quote_currency: Currency,
+    app_cxt: ApplicationContext,
+) -> Result<(), OrchestrateError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    if base_currency == quote_currency {
+        return Err(OrchestrateError::InvalidArgument(
+            "same currencies".to_string(),
+        ));
+    }
+    let currencies_hash =
+        get_currency_hash(&base_currency.to_string(), &quote_currency.to_string());
+    ////// get saved rate in redis if there's any
+    let saved_redis_currencies_rate =
+        get_exchange_rate(&currencies_hash, &mut app_cxt.redis_conn.clone()).await;
+
+    let currencies_rate = match saved_redis_currencies_rate {
+        None => {
+            warn!(
+                "No currencies rate found for base_currency={}, quote_currency={}",
+                base_currency, quote_currency
+            );
+            CurrencyRate {
+                rate,
+                base_currency,
+                quote_currency,
+                hash: currencies_hash,
+                recorded_at: Default::default(),
+                app_id: app_cxt.app_id.clone().to_string(),
+            }
+        }
+        Some(currencies_rate) => {
+            ////// Save rate to DB first
+            save_currency_rate_record(pg_pool, &currencies_rate).await?;
+            ///// return fetched currency
+            currencies_rate
+        }
+    };
+
+    save_exchange_rate(&currencies_rate, &mut app_cxt.redis_conn.clone())
+        .await
+        .map_err(|err| {
+            OrchestrateError::ServerError(format!(
+                "Failed to save exchange rate to redis, err={}",
+                err
+            ))
+        })?;
+    Ok(())
+}
 
 pub async fn convert_amount<'a, E>(
     pg_pool: E,

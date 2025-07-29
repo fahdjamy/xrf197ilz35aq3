@@ -14,7 +14,7 @@ pub use activity::{create_activity, find_last_user_activity};
 pub use block::create_block;
 pub use blockchain::{create_chained_block_chain, create_initial_block_chain};
 pub use chain::create_chain_stamp;
-pub use currency::convert_amount;
+pub use currency::{convert_amount, save_currencies_rate};
 pub use helper::{commit_db_transaction, rollback_db_transaction, start_db_transaction};
 pub use ledger::create_ledger;
 pub use transaction::{credit_wallet, debit_wallet_transaction};
