@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package proto.currency.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service CurrencyService {
+  rpc UpdateCurrenciesRate(UpdateCurrenciesRateRequest) returns (UpdateCurrenciesRateResponse);
+}
+
+///// Update currencies rate
+message UpdateCurrenciesRateRequest {
+  float rate = 1;
+  string base_currency = 2;
+  string quote_currency = 3;
+}
+
+message UpdateCurrenciesRateResponse {
+  float rate = 1;
+  string base_currency = 2;
+  string quote_currency = 3;
+  google.protobuf.Timestamp recorded_at = 4;
+}

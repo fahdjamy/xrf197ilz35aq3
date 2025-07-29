@@ -4,7 +4,6 @@ package proto.account.v1;
 
 import "google/protobuf/timestamp.proto";
 
-
 service AccountService {
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
 }
