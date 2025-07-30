@@ -77,10 +77,19 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           echo "Adding Apache Cassandra repository..."
-          # Add the official repository as it's not in the default sources
-          sudo apt-get install -y apt-transport-https gnupg2
-          curl https://downloads.apache.org/cassandra/KEYS | sudo apt-key add -
-          sudo sh -c 'echo "deb https://downloads.apache.org/cassandra/debian/41x main" > /etc/apt/sources.list.d/cassandra.list'
+          # 1. Install prerequisite packages
+          sudo apt-get update -y
+          sudo apt-get install -y ca-certificates apt-transport-https gnupg
+          
+          # 2. Create the keyring directory
+          sudo mkdir -p /etc/apt/keyrings
+          
+          # 3. Download the Cassandra GPG key and store it in the keyring directory
+          curl -L https://downloads.apache.org/cassandra/KEYS | sudo gpg --dearmor -o /etc/apt/keyrings/cassandra-archive-keyring.gpg
+          
+          # 4. Add the Cassandra repository, explicitly linking it to the GPG key
+          # This is the modern, secure format that prevents the "Malformed entry" error
+          echo "deb [signed-by=/etc/apt/keyrings/cassandra-archive-keyring.gpg] https://downloads.apache.org/cassandra/debian/41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
           
           echo "Installing Cassandra and OpenJDK 11..."
           sudo apt-get update -y
@@ -96,6 +105,7 @@ jobs:
           timeout=240
           interval=15
           elapsed=0
+          # Loop until nodetool status returns success
           while ! nodetool status > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
               echo "Cassandra did not become operational (nodetool status failed) within $timeout seconds."
