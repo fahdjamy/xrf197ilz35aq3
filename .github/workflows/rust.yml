@@ -80,7 +80,7 @@ jobs:
           # Add the official repository as it's not in the default sources
           sudo apt-get install -y apt-transport-https gnupg2
           curl https://downloads.apache.org/cassandra/KEYS | sudo apt-key add -
-          sudo sh -c 'echo "deb https://downloads.apache.org/cassandra/debian 41x main" > /etc/apt/sources.list.d/cassandra.list'
+          sudo sh -c 'echo "deb https://downloads.apache.org/cassandra/debian/41x main" > /etc/apt/sources.list.d/cassandra.list'
           
           echo "Installing Cassandra and OpenJDK 11..."
           sudo apt-get update -y
@@ -139,7 +139,6 @@ jobs:
 
       # --- Run SQL Migrations ---
       - name: Run SQL Migrations (PostgresSQL)
-        if: runner.os == 'macOS'
         # This step assumes the migration tool uses the DATABASE_URL environment variable.
         # It also assumes the migration tool (e.g., sqlx-cli, diesel_cli) is available.
         # Example: If using sqlx-cli, and it's not installed globally, run:
