@@ -76,20 +76,19 @@ jobs:
       - name: Install and Start Cassandra (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          echo "Installing Cassandra..."
-          # 1. Install prerequisites, including Java
+          echo "Installing Cassandra using a direct GPG key fetch..."
+          # 1. Install prerequisites
           sudo apt-get update -y
           sudo apt-get install -y apt-transport-https gnupg ca-certificates openjdk-11-jdk
           
-          # 2. Set JAVA_HOME to a stable, explicit path to avoid "Broken pipe" errors
-          #    and ensure it's available to all subsequent processes.
+          # 2. Set JAVA_HOME to a stable path
           echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" | sudo tee -a /etc/environment
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           
-          # 3. Add the Apache Cassandra repository GPG key from the primary distribution URL.
+          # 3. Fetch the specific GPG key from the Ubuntu keyserver
           echo "Adding Cassandra GPG key..."
           sudo mkdir -p /etc/apt/keyrings
-          curl -fL "https://www.apache.org/dist/cassandra/KEYS" | sudo gpg --dearmor -o /etc/apt/keyrings/apache-cassandra.asc
+          sudo gpg --homedir /tmp --no-default-keyring --keyring /etc/apt/keyrings/apache-cassandra.asc --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 5E85B9AE0B84C041
           
           # 4. Add the Cassandra repository to the sources list
           echo "Adding Cassandra repository..."
@@ -124,29 +123,13 @@ jobs:
           nodetool status
 
       # --- Cassandra C++ Driver Installation (Ubuntu) ---
-      - name: Install Cassandra C++ Driver (macOS)
+      - name: Install Cassandra C++ Driver (Ubuntu)
         if: runner.os == 'Linux'
         run: |
           echo "Installing Cassandra C++ Driver on Ubuntu..."
           # libgssapi-krb5-2 is a runtime dependency for the driver
           sudo apt-get install -y libuv1-dev libssl-dev cmake pkg-config libgssapi-krb5-2 libcassandra-cpp-driver-dev
           echo "Finished: Install Cassandra C++ Driver (Ubuntu)"
-
-      #      # --- Set Environment Variables for Rust Build (macOS) ---
-      #      - name: Set Build Environment Variables (macOS)
-      #        if: runner.os == 'macOS'
-      #        run: |
-      #          echo "Setting macOS build environment variables..."
-      #          OPENSSL_PREFIX=$(brew --prefix openssl)
-      #
-      #          # Prepend Homebrew paths and OpenSSL specific paths
-      #          echo "LIBRARY_PATH=$(brew --prefix)/lib:$OPENSSL_PREFIX/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" >> $GITHUB_ENV
-      #          echo "CPATH=$(brew --prefix)/include:$OPENSSL_PREFIX/include${CPATH:+:$CPATH}" >> $GITHUB_ENV
-      #
-      #          echo "OPENSSL_ROOT_DIR=$OPENSSL_PREFIX" >> $GITHUB_ENV
-      #          echo "OPENSSL_LIB_DIR=$OPENSSL_PREFIX/lib" >> $GITHUB_ENV
-      #          echo "OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include" >> $GITHUB_ENV
-      #          echo "*** macOS ENV Vars Set ***"
 
       # --- Run SQL Migrations ---
       - name: Run SQL Migrations (PostgresSQL)
