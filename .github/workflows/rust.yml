@@ -76,20 +76,23 @@ jobs:
       - name: Install and Start Cassandra (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          echo "Installing dependencies for Cassandra..."
-          # Install Java and other Cassandra dependencies
+          echo "Installing Cassandra..."
+          # 1. Install prerequisites, including Java
           sudo apt-get update -y
           sudo apt-get install -y apt-transport-https gnupg ca-certificates openjdk-11-jdk
           
-          # Set JAVA_HOME for the rest of the job
-          echo "JAVA_HOME=$(update-java-alternatives -l | head -n 1 | awk '{print $3}')" >> $GITHUB_ENV
+          # 2. Set JAVA_HOME to a stable, explicit path to avoid "Broken pipe" errors
+          #    and ensure it's available to all subsequent processes.
+          echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" | sudo tee -a /etc/environment
+          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           
-          # 2. Add the Apache Cassandra repository GPG key
+          # 3. Add the Apache Cassandra repository GPG key from the primary distribution URL.
+          echo "Adding Cassandra GPG key..."
           sudo mkdir -p /etc/apt/keyrings
-          curl -L https://debian.cassandra.apache.org/KEYS | sudo gpg --dearmor -o /etc/apt/keyrings/apache-cassandra.asc
+          curl -fL "https://www.apache.org/dist/cassandra/KEYS" | sudo gpg --dearmor -o /etc/apt/keyrings/apache-cassandra.asc
           
-          # 3. Add the Cassandra repository to a new sources list file
-          # This is the correct format and URL from the official documentation
+          # 4. Add the Cassandra repository to the sources list
+          echo "Adding Cassandra repository..."
           echo "deb [signed-by=/etc/apt/keyrings/apache-cassandra.asc] https://debian.cassandra.apache.org 41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
           
           echo "Installing Cassandra..."
