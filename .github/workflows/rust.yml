@@ -86,10 +86,14 @@ jobs:
           
           echo "Manually downloading and installing Cassandra..."
           CASSANDRA_VERSION="4.1.5"
-          curl -fL -o cassandra.deb "https://archive.apache.org/dist/cassandra/${CASSANDRA_VERSION}/apache-cassandra-${CASSANDRA_VERSION}-all.deb"
+          DEB_FILENAME="apache-cassandra_${CASSANDRA_VERSION}_all.deb"
+          DOWNLOAD_URL="https://downloads.apache.org/cassandra/debian/41x/${DEB_FILENAME}"
+          
+          echo "Downloading from: ${DOWNLOAD_URL}"
+          curl -fL -o "${DEB_FILENAME}" "${DOWNLOAD_URL}"
           
           # Install the downloaded package using dpkg
-          sudo dpkg -i cassandra.deb
+          sudo dpkg -i "${DEB_FILENAME}"
           
           echo "Starting Cassandra service..."
           sudo service cassandra start
