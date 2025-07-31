@@ -76,16 +76,17 @@ jobs:
       - name: Install and Start Cassandra (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          echo "Adding Apache Cassandra repository..."
+          echo "Setting up Apache Cassandra repository..."
           # 1. Install prerequisite packages
           sudo apt-get update -y
           sudo apt-get install -y ca-certificates apt-transport-https gnupg
           
-          # 2. Create the keyring directory
+          # 2. Set up the keyring for the GPG key
           sudo mkdir -p /etc/apt/keyrings
-          
-          # 3. Download the Cassandra GPG key and store it in the keyring directory
           curl -L https://downloads.apache.org/cassandra/KEYS | sudo gpg --dearmor -o /etc/apt/keyrings/cassandra-archive-keyring.gpg
+
+          # 3. Add the Cassandra repository using the correct format for a "flat" repository
+          echo "deb [signed-by=/etc/apt/keyrings/cassandra-archive-keyring.gpg] https://downloads.apache.org/cassandra/debian/41x/ /" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
           
           # 4. Add the Cassandra repository, explicitly linking it to the GPG key
           # This is the modern, secure format that prevents the "Malformed entry" error
