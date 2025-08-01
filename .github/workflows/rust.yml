@@ -76,20 +76,20 @@ jobs:
       - name: Install and Start Cassandra (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          echo "Installing Cassandra using the apt-key method..."
-          # 1. Install prerequisites
+          echo "Installing Cassandra and its dependencies..."
+          # 1. Install prerequisites, including python3 which is required by Cassandra 4.x
           sudo apt-get update -y
-          sudo apt-get install -y apt-transport-https gnupg ca-certificates openjdk-11-jdk
+          sudo apt-get install -y apt-transport-https gnupg ca-certificates openjdk-11-jdk python3
           
           # 2. Set JAVA_HOME to a stable path
           echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" | sudo tee -a /etc/environment
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           
-          # 3. Add the GPG key using the older apt-key method to bypass signing issues.
+          # 3. Add the Cassandra GPG key
           echo "Adding Cassandra GPG key using apt-key..."
           curl -fL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x5E85B9AE0B84C041" | sudo apt-key add -
           
-          # 4. Add the Cassandra repository WITHOUT the [signed-by] option
+          # 4. Add the Cassandra repository
           echo "Adding Cassandra repository..."
           echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
           
@@ -100,6 +100,12 @@ jobs:
           echo "Starting Cassandra service..."
           sudo service cassandra start
           
+          # Add a pause and extra debugging to see why the service might be failing
+          echo "Pausing for 15 seconds to allow the service to attempt startup..."
+          sleep 15
+          echo "Checking the status of the Cassandra service with systemd..."
+          sudo service cassandra status || echo "Service status check exited with an error, continuing to nodetool check."
+          
           echo "Waiting for Cassandra to become fully operational..."
           timeout=240
           interval=15
@@ -108,10 +114,10 @@ jobs:
           while ! nodetool status > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
               echo "Cassandra did not become operational (nodetool status failed) within $timeout seconds."
-              echo "Final nodetool status output:"
+              echo "--- Final nodetool status output: ---"
               nodetool status || echo "nodetool status command also failed to execute."
-              echo "--- Cassandra system.log (last 50 lines) ---"
-              sudo tail -n 50 /var/log/cassandra/system.log
+              echo "--- Systemd Journal for Cassandra (last 100 lines) ---"
+              sudo journalctl -u cassandra.service -n 100 --no-pager
               exit 1
             fi
             echo "Cassandra not up yet (nodetool status), waiting ($elapsed/$timeout s)..."
