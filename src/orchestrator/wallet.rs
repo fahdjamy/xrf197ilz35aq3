@@ -27,12 +27,12 @@ where
 
 pub async fn get_wallet_holding<'a, E>(
     pool: E,
-    acct_id: String,
+    acct_id: &str,
 ) -> Result<Option<WalletHolding>, OrchestrateError>
 where
     E: Executor<'a, Database = Postgres>,
 {
-    let wallet_holding = fetch_wallet(pool, &acct_id).await?;
+    let wallet_holding = fetch_wallet(pool, acct_id).await?;
 
     Ok(Some(wallet_holding))
 }
@@ -40,14 +40,14 @@ where
 pub async fn credit_wallet_holding(
     db_tx: &mut Transaction<'_, Postgres>,
     amount: Decimal,
-    acct_id: String,
+    acct_id: &str,
 ) -> Result<bool, OrchestrateError> {
     if amount == Decimal::zero() {
         return Err(OrchestrateError::InvalidArgument(
             "Amount cannot be zero".to_string(),
         ));
     }
-    let mut wallet_holding = match get_wallet_holding(&mut **db_tx, acct_id).await? {
+    let mut wallet_holding = match get_wallet_holding(&mut **db_tx, &acct_id).await? {
         Some(wallet_holding) => wallet_holding,
         None => {
             return Err(OrchestrateError::NotFoundError(
@@ -70,7 +70,7 @@ pub async fn credit_wallet_holding(
 pub async fn debit_wallet(
     tx: &mut PgConnection,
     amount: Decimal,
-    acct_id: String,
+    acct_id: &str,
 ) -> Result<bool, OrchestrateError> {
     if amount == Decimal::zero() {
         return Err(OrchestrateError::InvalidArgument(

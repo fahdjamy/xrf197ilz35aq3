@@ -102,6 +102,11 @@ jobs:
           sudo sed -i 's/^listen_address:.*/listen_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
           sudo sed -i 's/^rpc_address:.*/rpc_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
           
+          # 6. Reduce JVM heap size to prevent memory allocation errors in CI
+          echo "Reducing JVM heap size for CI environment..."
+          sudo sed -i 's/^-Xms.*/-Xms1G/' /etc/cassandra/jvm-server.options
+          sudo sed -i 's/^-Xmx.*/-Xmx1G/' /etc/cassandra/jvm-server.options
+          
           echo "Starting Cassandra service with updated configuration..."
           sudo service cassandra start
           
@@ -117,6 +122,8 @@ jobs:
               nodetool status || echo "nodetool status command also failed to execute."
               echo "--- Systemd Journal for Cassandra (last 100 lines) ---"
               sudo journalctl -u cassandra.service -n 100 --no-pager
+              echo "--- Cassandra system.log (if it exists) ---"
+              sudo cat /var/log/cassandra/system.log || echo "system.log not found."
               exit 1
             fi
             echo "Cassandra not up yet (nodetool status), waiting ($elapsed/$timeout s)..."
