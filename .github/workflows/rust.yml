@@ -18,7 +18,7 @@ jobs:
   build_and_test:
     strategy:
       matrix:
-        os: [ ubuntu-latest ] # Matrix with only ubuntu for now
+        os: [ ubuntu-22.04 ] # Matrix with only ubuntu for now
       fail-fast: false # Optional: set to false if you want all matrix jobs to complete even if one fails
 
     runs-on: ${{ matrix.os }} # Use the OS from the matrix
