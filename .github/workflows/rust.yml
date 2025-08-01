@@ -74,63 +74,49 @@ jobs:
 
       # --- Cassandra Setup via apt (Ubuntu) ---
       - name: Install and Start Cassandra (Ubuntu)
-        if: runner.os == 'Linux'
         run: |
-          echo "Installing Cassandra and its dependencies..."
-          # 1. Install prerequisites, including python3 which is required by Cassandra 4.x
-          sudo apt-get update -y
+          # 1. Install prerequisites, including python3 required by Cassandra 4.x
           sudo apt-get install -y apt-transport-https gnupg ca-certificates openjdk-11-jdk python3
           
           # 2. Set JAVA_HOME to a stable path
           echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" | sudo tee -a /etc/environment
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           
-          # 3. Add the Cassandra GPG key
-          echo "Adding Cassandra GPG key using apt-key..."
+          # 3. Add the GPG key using apt-key
           curl -fL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x5E85B9AE0B84C041" | sudo apt-key add -
           
           # 4. Add the Cassandra repository
-          echo "Adding Cassandra repository..."
           echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
           
-          echo "Installing Cassandra..."
+          # 5. Install Cassandra
           sudo apt-get update -y
           sudo apt-get install -y cassandra
           
-          # 5. Modify Cassandra configuration for CI environment
-          echo "Applying CI-friendly Cassandra configuration..."
+          # 6. Modify Cassandra configuration for CI environment
           sudo sed -i 's/^listen_address:.*/listen_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
           sudo sed -i 's/^rpc_address:.*/rpc_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
           
-          # 6. Reduce JVM heap size to prevent memory allocation errors in CI
-          echo "Reducing JVM heap size for CI environment..."
+          # 7. Reduce JVM heap size to prevent memory allocation errors
           sudo sed -i 's/^-Xms.*/-Xms1G/' /etc/cassandra/jvm-server.options
           sudo sed -i 's/^-Xmx.*/-Xmx1G/' /etc/cassandra/jvm-server.options
           
-          echo "Starting Cassandra service with updated configuration..."
+          # 8. Start the service
           sudo service cassandra start
           
-          echo "Waiting for Cassandra to become fully operational..."
+          # 9. Wait for Cassandra to become fully operational
           timeout=240
           interval=15
           elapsed=0
-          # Loop until nodetool status returns success
           while ! nodetool status > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
-              echo "Cassandra did not become operational (nodetool status failed) within $timeout seconds."
-              echo "--- Final nodetool status output: ---"
-              nodetool status || echo "nodetool status command also failed to execute."
-              echo "--- Systemd Journal for Cassandra (last 100 lines) ---"
+              echo "Cassandra did not become operational within $timeout seconds."
               sudo journalctl -u cassandra.service -n 100 --no-pager
-              echo "--- Cassandra system.log (if it exists) ---"
-              sudo cat /var/log/cassandra/system.log || echo "system.log not found."
               exit 1
             fi
-            echo "Cassandra not up yet (nodetool status), waiting ($elapsed/$timeout s)..."
             sleep $interval
             elapsed=$((elapsed + interval))
           done
-          echo "Cassandra started successfully and nodetool status is OK."
+          echo "Cassandra started successfully."
           nodetool status
 
       # --- Cassandra C++ Driver Installation (Ubuntu) ---
