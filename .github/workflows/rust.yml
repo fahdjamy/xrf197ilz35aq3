@@ -97,14 +97,13 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y cassandra
           
-          echo "Starting Cassandra service..."
-          sudo service cassandra start
+          # 5. Modify Cassandra configuration for CI environment
+          echo "Applying CI-friendly Cassandra configuration..."
+          sudo sed -i 's/^listen_address:.*/listen_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
+          sudo sed -i 's/^rpc_address:.*/rpc_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
           
-          # Add a pause and extra debugging to see why the service might be failing
-          echo "Pausing for 15 seconds to allow the service to attempt startup..."
-          sleep 15
-          echo "Checking the status of the Cassandra service with systemd..."
-          sudo service cassandra status || echo "Service status check exited with an error, continuing to nodetool check."
+          echo "Starting Cassandra service with updated configuration..."
+          sudo service cassandra start
           
           echo "Waiting for Cassandra to become fully operational..."
           timeout=240
