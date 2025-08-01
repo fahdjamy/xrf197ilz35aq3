@@ -76,7 +76,7 @@ jobs:
       - name: Install and Start Cassandra (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          echo "Installing Cassandra using a direct GPG key fetch over HTTPS..."
+          echo "Installing Cassandra using the apt-key method..."
           # 1. Install prerequisites
           sudo apt-get update -y
           sudo apt-get install -y apt-transport-https gnupg ca-certificates openjdk-11-jdk
@@ -85,14 +85,13 @@ jobs:
           echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" | sudo tee -a /etc/environment
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           
-          # 3. Fetch the specific GPG key using HTTPS (port 443) to avoid firewall issues.
-          echo "Adding Cassandra GPG key..."
-          sudo mkdir -p /etc/apt/keyrings
-          curl -fL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x5E85B9AE0B84C041" | sudo gpg --dearmor -o /etc/apt/keyrings/apache-cassandra.asc
+          # 3. Add the GPG key using the older apt-key method to bypass signing issues.
+          echo "Adding Cassandra GPG key using apt-key..."
+          curl -fL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x5E85B9AE0B84C041" | sudo apt-key add -
           
-          # 4. Add the Cassandra repository to the sources list
+          # 4. Add the Cassandra repository WITHOUT the [signed-by] option
           echo "Adding Cassandra repository..."
-          echo "deb [signed-by=/etc/apt/keyrings/apache-cassandra.asc] https://debian.cassandra.apache.org 41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
+          echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
           
           echo "Installing Cassandra..."
           sudo apt-get update -y
