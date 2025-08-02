@@ -119,14 +119,13 @@ jobs:
           echo "Cassandra started successfully."
           nodetool status
 
-      # --- Cassandra C++ Driver Installation (Ubuntu) ---
-      - name: Install Cassandra C++ Driver (Ubuntu)
-        if: runner.os == 'Linux'
+      # --- Run SQL Migrations ---
+      - name: Run SQL Migrations (PostgresSQL)
         run: |
-          echo "Installing Cassandra C++ Driver on Ubuntu..."
-          # libgssapi-krb5-2 is a runtime dependency for the driver
-          sudo apt-get install -y libuv1-dev libssl-dev cmake pkg-config libgssapi-krb5-2 libcassandra-cpp-driver-dev
-          echo "Finished: Install Cassandra C++ Driver (Ubuntu)"
+          if ! command -v sqlx &> /dev/null; then
+            cargo install sqlx-cli --no-default-features --features native-tls,postgres
+          fi
+          sqlx migrate run --source ./migrations
 
       # --- Run SQL Migrations ---
       - name: Run SQL Migrations (PostgresSQL)
