@@ -41,9 +41,25 @@ jobs:
           toolchain: stable # Or a specific toolchain version
           profile: minimal
 
-      - name: Install Build Dependencies
+      - name: Install Dependencies
         run: |
-          sudo apt-get install -y libuv1-dev libssl-dev cmake pkg-config libgssapi-krb5-2 libcassandra-cpp-driver-dev protobuf-compiler
+          sudo apt-get update -y
+          # --- Install general build tools ---
+          echo "Installing build tools..."
+          sudo apt-get install -y protobuf-compiler cmake pkg-config
+          # --- Install PostgreSQL client ---
+          echo "Installing PostgreSQL client..."
+          sudo apt-get install -y postgresql-client
+          # --- Install Cassandra C++ Driver ---
+          echo "Adding DataStax repository for C++ Driver..."
+          # Add DataStax GPG Key
+          curl -fL "https://downloads.datastax.com/cpp-driver/repo.key" | sudo gpg --dearmor -o /etc/apt/keyrings/datastax-cpp-driver.gpg
+          # Add DataStax repository source
+          echo "deb [signed-by=/etc/apt/keyrings/datastax-cpp-driver.gpg] https://downloads.datastax.com/cpp-driver/ubuntu/22.04 jammy main" | sudo tee /etc/apt/sources.list.d/datastax.list
+          # Update and install the driver
+          sudo apt-get update -y
+          echo "Installing Cassandra C++ Driver..."
+          sudo apt-get install -y libuv1-dev libssl-dev libgssapi-krb5-2 libcassandra-cpp-driver-dev
 
       # --- PostgresSQL Setup via apt (Ubuntu) ---
       - name: Install and Start Postgres SQL (Ubuntu)
