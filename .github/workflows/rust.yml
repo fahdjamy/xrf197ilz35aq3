@@ -21,6 +21,27 @@ jobs:
         os: [ ubuntu-22.04 ] # Matrix with only ubuntu for now
       fail-fast: false # Optional: set to false if you want all matrix jobs to complete even if one fails
 
+    # Use service containers to run databases, which is much more reliable
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        ports:
+          - 5432:5432
+        # Add a health check to wait until Postgres is ready
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      cassandra:
+        image: cassandra:4.1
+        ports:
+          - 9042:9042
+
     runs-on: ${{ matrix.os }} # Use the OS from the matrix
 
     steps:
@@ -38,15 +59,16 @@ jobs:
       - name: Set up Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable # Or a specific toolchain version
+          toolchain: stable
           profile: minimal
 
       - name: Install Dependencies & Build C++ Driver from Source
         run: |
           sudo apt-get update -y
           # Install build tools and client libraries
+          # ADDED cassandra-tools to provide the cqlsh command
           sudo apt-get install -y protobuf-compiler cmake pkg-config git postgresql-client \
-          libuv1-dev libssl-dev libgssapi-krb5-2
+            libuv1-dev libssl-dev libgssapi-krb5-2 cassandra-tools
           
           # Build the Cassandra C++ Driver from source to bypass network issues
           echo "Cloning and building Cassandra C++ driver from source..."
@@ -63,7 +85,8 @@ jobs:
       - name: Wait for Cassandra to be ready
         run: |
           echo "Waiting for Cassandra service to start..."
-          timeout=120
+          # INCREASED timeout to give Cassandra more time to initialize
+          timeout=180 
           interval=10
           elapsed=0
           while ! cqlsh -e "describe keyspaces" > /dev/null 2>&1; do
