@@ -65,10 +65,19 @@ jobs:
       - name: Install Dependencies & Build C++ Driver from Source
         run: |
           sudo apt-get update -y
-          # Install build tools and client libraries
-          # ADDED cassandra-tools to provide the cqlsh command
+          # Install build tools, clients, and base packages
           sudo apt-get install -y protobuf-compiler cmake pkg-config git postgresql-client \
-            libuv1-dev libssl-dev libgssapi-krb5-2 cassandra-tools
+            libuv1-dev libssl-dev libgssapi-krb5-2 gnupg
+          
+          # Add the Apache Cassandra repository to get 'cassandra-tools'
+          echo "Adding Apache Cassandra repository..."
+          curl -fL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x5E85B9AE0B84C041" | sudo apt-key add -
+          echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
+          
+          # Update again after adding the new repo
+          sudo apt-get update -y
+          # Now install cassandra-tools
+          sudo apt-get install -y cassandra-tools
           
           # Build the Cassandra C++ Driver from source to bypass network issues
           echo "Cloning and building Cassandra C++ driver from source..."
@@ -85,8 +94,7 @@ jobs:
       - name: Wait for Cassandra to be ready
         run: |
           echo "Waiting for Cassandra service to start..."
-          # INCREASED timeout to give Cassandra more time to initialize
-          timeout=180 
+          timeout=180
           interval=10
           elapsed=0
           while ! cqlsh -e "describe keyspaces" > /dev/null 2>&1; do
