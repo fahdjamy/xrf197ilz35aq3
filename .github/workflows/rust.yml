@@ -50,12 +50,14 @@ jobs:
           # --- Install PostgreSQL client ---
           echo "Installing PostgreSQL client..."
           sudo apt-get install -y postgresql-client
+          
           # --- Install Cassandra C++ Driver ---
           echo "Adding DataStax repository for C++ Driver..."
-          # Add DataStax GPG Key
-          curl -fL "https://downloads.datastax.com/cpp-driver/repo.key" | sudo gpg --dearmor -o /etc/apt/keyrings/datastax-cpp-driver.gpg
-          # Add DataStax repository source
-          echo "deb [signed-by=/etc/apt/keyrings/datastax-cpp-driver.gpg] https://downloads.datastax.com/cpp-driver/ubuntu/22.04 jammy main" | sudo tee /etc/apt/sources.list.d/datastax.list
+          # Add DataStax GPG Key from the new, correct URL
+          curl -fL "https://cass-repo.datastax.com/GPG-KEY-dsc-packages" | sudo gpg --dearmor -o /etc/apt/keyrings/datastax-cpp-driver.gpg
+          # Add DataStax repository
+          echo "deb [signed-by=/etc/apt/keyrings/datastax-cpp-driver.gpg] https://cass-repo.datastax.com/cpp-driver/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/datastax.list
+          
           # Update and install the driver
           sudo apt-get update -y
           echo "Installing Cassandra C++ Driver..."
