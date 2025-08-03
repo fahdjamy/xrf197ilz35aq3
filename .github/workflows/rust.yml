@@ -53,9 +53,24 @@ jobs:
           
           # --- Install Cassandra C++ Driver ---
           echo "Adding DataStax repository for C++ Driver..."
-          # Add DataStax GPG Key from the new, correct URL
-          curl -fL "https://cass-repo.datastax.com/GPG-KEY-dsc-packages" | sudo gpg --dearmor -o /etc/apt/keyrings/datastax-cpp-driver.gpg
-          # Add DataStax repository
+          
+          # Add a retry loop to handle transient network errors
+          RETRY_COUNT=0
+          SUCCESS=false
+          until $SUCCESS || [ $RETRY_COUNT -eq 3 ]; do
+            if [ $RETRY_COUNT -gt 0 ]; then
+              echo "Retrying key download... (Attempt $((RETRY_COUNT + 1)))"
+              sleep 5
+            fi
+            curl -fL "https://cass-repo.datastax.com/GPG-KEY-dsc-packages" | sudo gpg --dearmor -o /etc/apt/keyrings/datastax-cpp-driver.gpg && SUCCESS=true
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+          done
+          if ! $SUCCESS; then
+            echo "Failed to download GPG key after 3 attempts."
+            exit 1
+          fi
+          
+          # Add DataStax repository source
           echo "deb [signed-by=/etc/apt/keyrings/datastax-cpp-driver.gpg] https://cass-repo.datastax.com/cpp-driver/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/datastax.list
           
           # Update and install the driver
