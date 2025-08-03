@@ -44,39 +44,20 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update -y
-          # --- Install general build tools ---
+          # --- Install general build tools and PostgreSQL client ---
           echo "Installing build tools..."
-          sudo apt-get install -y protobuf-compiler cmake pkg-config
-          # --- Install PostgreSQL client ---
-          echo "Installing PostgreSQL client..."
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y protobuf-compiler cmake pkg-config postgresql-client
           
-          # --- Install Cassandra C++ Driver ---
-          echo "Adding DataStax repository for C++ Driver..."
-          
-          # Add a retry loop to handle transient network errors
-          RETRY_COUNT=0
-          SUCCESS=false
-          until $SUCCESS || [ $RETRY_COUNT -eq 3 ]; do
-            if [ $RETRY_COUNT -gt 0 ]; then
-              echo "Retrying key download... (Attempt $((RETRY_COUNT + 1)))"
-              sleep 5
-            fi
-            curl -fL "https://cass-repo.datastax.com/GPG-KEY-dsc-packages" | sudo gpg --dearmor -o /etc/apt/keyrings/datastax-cpp-driver.gpg && SUCCESS=true
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-          done
-          if ! $SUCCESS; then
-            echo "Failed to download GPG key after 3 attempts."
-            exit 1
-          fi
-          
-          # Add DataStax repository source
-          echo "deb [signed-by=/etc/apt/keyrings/datastax-cpp-driver.gpg] https://cass-repo.datastax.com/cpp-driver/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/datastax.list
-          
-          # Update and install the driver
-          sudo apt-get update -y
-          echo "Installing Cassandra C++ Driver..."
-          sudo apt-get install -y libuv1-dev libssl-dev libgssapi-krb5-2 libcassandra-cpp-driver-dev
+          # --- Manually Install Cassandra C++ Driver ---
+          echo "Manually downloading and installing Cassandra C++ Driver..."
+          # Download the main driver library
+          curl -fLO "https://cass-repo.datastax.com/cpp-driver/ubuntu/dists/jammy/main/binary-amd64/libcassandra-cpp-driver2_2.16.2-1_amd64.deb"
+          # Download the development files (-dev package)
+          curl -fLO "https://cass-repo.datastax.com/cpp-driver/ubuntu/dists/jammy/main/binary-amd64/libcassandra-cpp-driver-dev_2.16.2-1_amd64.deb"
+          # Install the downloaded .deb files
+          sudo dpkg -i ./*.deb
+          # Install remaining dependencies for the driver
+          sudo apt-get install -y libuv1-dev libssl-dev libgssapi-krb5-2
 
       # --- PostgresSQL Setup via apt (Ubuntu) ---
       - name: Install and Start Postgres SQL (Ubuntu)
