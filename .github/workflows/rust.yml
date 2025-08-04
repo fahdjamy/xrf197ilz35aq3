@@ -105,118 +105,11 @@ jobs:
             sleep $interval
             elapsed=$((elapsed + interval))
           done
-          echo "Cassandra is ready."
-
-      #      - name: Install Dependencies
-      #        run: |
-      #          sudo apt-get update -y
-      #          # --- Install general build tools and PostgreSQL client ---
-      #          echo "Installing build tools..."
-      #          sudo apt-get install -y protobuf-compiler cmake pkg-config postgresql-client
-      #
-      #          # --- Manually Install Cassandra C++ Driver ---
-      #          echo "Manually downloading and installing Cassandra C++ Driver..."
-      #          # Download the main driver library
-      #          curl -fLO "https://cass-repo.datastax.com/cpp-driver/ubuntu/dists/jammy/main/binary-amd64/libcassandra-cpp-driver2_2.16.2-1_amd64.deb"
-      #          # Download the development files (-dev package)
-      #          curl -fLO "https://cass-repo.datastax.com/cpp-driver/ubuntu/dists/jammy/main/binary-amd64/libcassandra-cpp-driver-dev_2.16.2-1_amd64.deb"
-      #          # Install the downloaded .deb files
-      #          sudo dpkg -i ./*.deb
-      #          # Install remaining dependencies for the driver
-      #          sudo apt-get install -y libuv1-dev libssl-dev libgssapi-krb5-2
-      #
-      #      # --- PostgresSQL Setup via apt (Ubuntu) ---
-      #      - name: Install and Start Postgres SQL (Ubuntu)
-      #        if: runner.os == 'Linux'
-      #        run: |
-      #          echo "Setting up PostgreSQL on Ubuntu..."
-      #          sudo apt-get update -y
-      #          sudo apt-get install -y postgresql postgresql-contrib
-      #          sudo systemctl start postgresql
-      #
-      #          echo "Creating database and user..."
-      #          # Create a user and grant superuser for CI simplicity
-      #          sudo -u postgres createuser --superuser ${{ env.POSTGRES_USER }}
-      #          # Set the password for the new user
-      #          sudo -u postgres psql -c "ALTER USER ${{ env.POSTGRES_USER }} WITH PASSWORD '${{ env.POSTGRES_PASSWORD }}';"
-      #          # Create the database owned by the new user
-      #          sudo -u postgres createdb -O ${{ env.POSTGRES_USER }} ${{ env.POSTGRES_DB }}
-      #
-      #          echo "Waiting for PostgreSQL to be ready..."
-      #          timeout=60
-      #          until pg_isready -h localhost -p 5432 -U "${{ env.POSTGRES_USER }}" -d "${{ env.POSTGRES_DB }}"; do
-      #            timeout=$((timeout - 5))
-      #            if [ $timeout -le 0 ]; then
-      #              echo "PostgreSQL did not become ready in time."
-      #              # Optional: Show logs
-      #              sudo tail -n 50 /var/log/postgresql/postgresql-*-main.log
-      #              exit 1
-      #            fi
-      #            sleep 5
-      #          done
-      #          echo "PostgreSQL is ready and accessible."
-      #
-      #      # --- Cassandra Setup via apt (Ubuntu) ---
-      #      - name: Install and Start Cassandra (Ubuntu)
-      #        run: |
-      #          # 1. Install prerequisites, including python3 required by Cassandra 4.x
-      #          sudo apt-get install -y apt-transport-https gnupg ca-certificates openjdk-11-jdk python3
-      #
-      #          # 2. Set JAVA_HOME to a stable path
-      #          echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" | sudo tee -a /etc/environment
-      #          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-      #
-      #          # 3. Add the GPG key using apt-key
-      #          curl -fL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x5E85B9AE0B84C041" | sudo apt-key add -
-      #
-      #          # 4. Add the Cassandra repository
-      #          echo "deb https://debian.cassandra.apache.org 41x main" | sudo tee /etc/apt/sources.list.d/cassandra.list > /dev/null
-      #
-      #          # 5. Install Cassandra
-      #          sudo apt-get update -y
-      #          sudo apt-get install -y cassandra
-      #
-      #          # 6. Modify Cassandra configuration for CI environment
-      #          sudo sed -i 's/^listen_address:.*/listen_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
-      #          sudo sed -i 's/^rpc_address:.*/rpc_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml
-      #
-      #          # 7. Reduce JVM heap size to prevent memory allocation errors
-      #          sudo sed -i 's/^-Xms.*/-Xms1G/' /etc/cassandra/jvm-server.options
-      #          sudo sed -i 's/^-Xmx.*/-Xmx1G/' /etc/cassandra/jvm-server.options
-      #
-      #          # 8. Start the service
-      #          sudo service cassandra start
-      #
-      #          # 9. Wait for Cassandra to become fully operational
-      #          timeout=240
-      #          interval=15
-      #          elapsed=0
-      #          while ! nodetool status > /dev/null 2>&1; do
-      #            if [ $elapsed -ge $timeout ]; then
-      #              echo "Cassandra did not become operational within $timeout seconds."
-      #              sudo journalctl -u cassandra.service -n 100 --no-pager
-      #              exit 1
-      #            fi
-      #            sleep $interval
-      #            elapsed=$((elapsed + interval))
-      #          done
-      #          echo "Cassandra started successfully."
-      #          nodetool status
-
-      #      # --- Run SQL Migrations ---
-      #      - name: Run SQL Migrations (PostgresSQL)
-      #        run: |
-      #          if ! command -v sqlx &> /dev/null; then
-      #            cargo install sqlx-cli --no-default-features --features native-tls,postgres
-      #          fi
-      #          sqlx migrate run --source ./migrations
+          echo "Cassandra is ready."      
 
       # --- Run SQL Migrations ---
       - name: Run SQL Migrations (PostgresSQL)
         # This step assumes the migration tool uses the DATABASE_URL environment variable.
-        # It also assumes the migration tool (e.g., sqlx-cli, diesel_cli) is available.
-        # Example: If using sqlx-cli, and it's not installed globally, run:
-        # cargo install sqlx-cli --no-default-features --features native-tls,postgres
         run: |
           echo "Running PostgresSQL migrations... Attempting to run migrations with sqlx-cli ..."
           if ! command -v sqlx &> /dev/null
@@ -226,15 +119,14 @@ jobs:
             # Verify installation
             if ! command -v sqlx &> /dev/null
             then
-              echo "Failed to install sqlx-cli. Please ensure your migration tool is available."
+              echo "Failed to install sqlx-cli."
               exit 1
             fi
           fi
           
-          # Assumes the migrations are in root at './migrations' and The DATABASE_URL env variable is already set.
+          # Running migrations at root dir './migrations'
           sqlx migrate run --source ./migrations 
           
-          echo "PostgresSQL migrations completed."
           # If you also have Cassandra schema setup/migrations, add those commands here.
           # Example: cqlsh -f ./path/to/cassandra_schema.cql || echo "Cassandra schema setup might have issues."
 
