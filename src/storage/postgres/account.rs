@@ -147,3 +147,48 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     .await?;
     Ok(result.rows_affected() == 1)
 }
+
+#[tracing::instrument(
+    level = "debug",
+    skip(pg_pool, user_fp),
+    name = "Find all user accounts"
+)]
+pub async fn fetch_user_accounts_by_currencies_and_types<'a, E>(
+    pg_pool: E,
+    user_fp: &str,
+    currencies: &[Currency],
+    acct_types: &[AccountType],
+) -> Result<Vec<Account>, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    info!("fetching user accounts");
+
+    let result: Vec<AccountDO> = sqlx::query_as!(
+        AccountDO,
+        r#"
+SELECT  id,
+        locked,
+        user_fp,
+        timezone,
+        status as "status: _",
+        currency as "currency: _",
+        creation_time,
+        modification_time,
+        acct_type as "acct_type: _"
+FROM user_account
+WHERE user_fp = $1
+    AND currency = ANY($2)
+    OR acct_type = ANY($3)
+"#,
+        user_fp,
+        currencies as &[Currency],
+        acct_types as &[AccountType]
+    )
+    .fetch_all(pg_pool)
+    .await?;
+
+    let result: Vec<Account> = result.into_iter().map(Account::from).collect();
+
+    Ok(result)
+}
