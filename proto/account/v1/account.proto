@@ -6,6 +6,19 @@ import "google/protobuf/timestamp.proto";
 
 service AccountService {
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+  rpc GetUserAccount(GetUserAccountRequest) returns (GetUserAccountResponse);
+  rpc GetUserAccounts(GetUserAccountsRequest) returns (GetUserAccountsResponse);
+  rpc GetWalletHolding(GetWalletHoldingRequest) returns (GetWalletHoldingResponse);
+}
+
+message AccountResponse {
+  bool locked = 1;
+  string status = 2;
+  string account_id = 3;
+  string account_type = 4;
+  google.protobuf.Timestamp creation_time = 5;
+  google.protobuf.Timestamp modification_time = 6;
+  WalletResponse wallet_holding = 7;
 }
 
 ///// Create account
@@ -22,11 +35,42 @@ message WalletResponse {
 }
 
 message CreateAccountResponse {
-  bool locked = 1;
-  string status = 2;
-  string account_id = 3;
-  string account_type = 4;
-  google.protobuf.Timestamp creation_time = 5;
-  google.protobuf.Timestamp modification_time = 6;
-  WalletResponse wallet_holding = 7;
+  AccountResponse account = 1;
+}
+
+///// Get Account detail
+message GetUserAccountRequest {
+  string currency = 1;
+  string acct_type = 2;
+}
+
+message GetUserAccountResponse {
+  AccountResponse account = 1;
+}
+
+////// Get account balance
+message GetWalletHoldingRequest {
+  string account_id = 1;
+}
+
+message GetWalletHoldingResponse {
+  WalletResponse wallet_holding = 1;
+}
+
+///// GetAllUserAccounts
+message CurrencyList {
+  repeated string currencies = 1;
+}
+
+message AccountTypesList {
+  repeated string types = 1;
+}
+
+message GetUserAccountsRequest {
+  optional CurrencyList currencies = 1;
+  optional AccountTypesList acct_types = 2;
+}
+
+message GetUserAccountsResponse {
+  repeated AccountResponse accounts = 1;
 }
