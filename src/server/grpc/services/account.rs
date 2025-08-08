@@ -8,13 +8,17 @@ use crate::grpc_services::{
 };
 use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
-use crate::{create_account, generate_request_id, REQUEST_ID_KEY, XRF_USER_FINGERPRINT};
+use crate::{
+    create_account, generate_request_id, get_user_accounts_by_currencies_and_types,
+    DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
+};
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
+use rust_decimal::prelude::ToPrimitive;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
-use tracing::{info, info_span, warn};
+use tracing::{error, info, info_span, warn};
 
 pub struct AccountServiceManager {
     pg_pool: Arc<PgPool>,
@@ -42,6 +46,7 @@ impl AccountService for AccountServiceManager {
         &self,
         request: Request<CreateAccountRequest>,
     ) -> Result<Response<CreateAccountResponse>, Status> {
+        let event = "createUserAccount";
         trace_request!(request, "create_account");
         let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
         let req = request.into_inner();
@@ -61,15 +66,7 @@ impl AccountService for AccountServiceManager {
             &self.app_ctx,
         )
         .await
-        .map_err(|err| match err {
-            OrchestrateError::NotFoundError(err) => {
-                Status::not_found(format!("not found: {}", err))
-            }
-            OrchestrateError::InvalidArgument(err) => {
-                Status::invalid_argument(format!("Invalid argument: {}", err))
-            }
-            _ => Status::internal("Internal server error"),
-        })?;
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(CreateAccountResponse {
             account: Some(AccountResponse {
@@ -111,7 +108,60 @@ impl AccountService for AccountServiceManager {
         &self,
         request: Request<GetUserAccountsRequest>,
     ) -> Result<Response<GetUserAccountsResponse>, Status> {
-        unimplemented!()
+        let event = "get_user_accounts";
+        trace_request!(request, "get_user_account");
+        let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
+        let req = request.into_inner();
+        let user_ctx =
+            UserContext::load_user_context(user_fp, DEFAULT_TIMEZONE.to_string(), None, None);
+
+        let currencies = match req.currencies {
+            None => vec![],
+            Some(currency_list) => currency_list.currencies.iter().cloned().collect(),
+        };
+        let acct_types = match req.acct_types {
+            None => vec![],
+            Some(acct_types_list) => acct_types_list.types.iter().cloned().collect(),
+        };
+
+        let saved_accounts_and_wallet = get_user_accounts_by_currencies_and_types(
+            &self.pg_pool,
+            &currencies,
+            &acct_types,
+            &user_ctx,
+        )
+        .await
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+
+        let account_resp: Vec<AccountResponse> = saved_accounts_and_wallet
+            .iter()
+            .map(|(acct, wallet)| AccountResponse {
+                locked: acct.locked,
+                status: acct.status.to_string(),
+                account_id: acct.id.to_string(),
+                account_type: acct.account_type.to_string(),
+                creation_time: Some(Timestamp {
+                    seconds: acct.creation_time.timestamp(),
+                    nanos: acct.creation_time.timestamp_subsec_nanos() as i32,
+                }),
+                modification_time: Some(Timestamp {
+                    seconds: acct.modification_time.timestamp(),
+                    nanos: acct.modification_time.timestamp_subsec_nanos() as i32,
+                }),
+                wallet_holding: Some(WalletResponse {
+                    currency: wallet.currency.to_string(),
+                    balance: wallet.balance.to_f32().unwrap_or_default(),
+                    modification_time: Some(Timestamp {
+                        seconds: wallet.modification_time.timestamp(),
+                        nanos: wallet.modification_time.timestamp_subsec_nanos() as i32,
+                    }),
+                }),
+            })
+            .collect();
+
+        Ok(Response::new(GetUserAccountsResponse {
+            accounts: account_resp,
+        }))
     }
 
     async fn get_wallet_holding(
@@ -119,5 +169,23 @@ impl AccountService for AccountServiceManager {
         request: Request<GetWalletHoldingRequest>,
     ) -> Result<Response<GetWalletHoldingResponse>, Status> {
         unimplemented!()
+    }
+}
+
+fn map_orchestrator_err_to_grpc_error(event: &str, err: OrchestrateError) -> Status {
+    match err {
+        OrchestrateError::InvalidArgument(_) => {
+            Status::invalid_argument(format!("Invalid argument: {}", err))
+        }
+        OrchestrateError::NotFoundError(err) => Status::not_found(format!("Not found: {}", err)),
+        OrchestrateError::DatabaseError(err) => {
+            error!("event={} :: database error: {}", event, err);
+            Status::internal("Internal server error")
+        }
+        OrchestrateError::RowConstraintViolation(err) => {
+            error!("event={} :: row constraint err :: err={}", event, err);
+            Status::internal("Internal server error")
+        }
+        _ => Status::internal("Internal server error"),
     }
 }
