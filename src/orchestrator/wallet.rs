@@ -4,7 +4,7 @@ use crate::storage::{create_wallet, fetch_wallet, update_wallet_balance};
 use chrono::Utc;
 use rust_decimal::prelude::Zero;
 use rust_decimal::Decimal;
-use sqlx::{Executor, PgConnection, Postgres, Transaction};
+use sqlx::{Executor, PgConnection, PgPool, Postgres, Transaction};
 use std::ops::Add;
 
 pub async fn create_wallet_holding<'a, E>(
@@ -21,18 +21,6 @@ where
     if !wallet_created {
         return Ok(None);
     }
-
-    Ok(Some(wallet_holding))
-}
-
-pub async fn get_wallet_holding<'a, E>(
-    pool: E,
-    acct_id: &str,
-) -> Result<Option<WalletHolding>, OrchestrateError>
-where
-    E: Executor<'a, Database = Postgres>,
-{
-    let wallet_holding = fetch_wallet(pool, acct_id).await?;
 
     Ok(Some(wallet_holding))
 }
@@ -98,4 +86,25 @@ pub async fn debit_wallet(
 
     let updated_wallet = update_wallet_balance(&mut *tx, &wallet_holding).await?;
     Ok(updated_wallet.balance == wallet_holding.balance)
+}
+
+async fn get_wallet_holding<'a, E>(
+    pool: E,
+    acct_id: &str,
+) -> Result<Option<WalletHolding>, OrchestrateError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    let wallet_holding = fetch_wallet(pool, acct_id).await?;
+
+    Ok(Some(wallet_holding))
+}
+
+pub async fn find_user_wallet_for_acct(
+    pool: &PgPool,
+    acct_id: &str,
+) -> Result<Option<WalletHolding>, OrchestrateError> {
+    let wallet_holding = fetch_wallet(pool, acct_id).await?;
+
+    Ok(Some(wallet_holding))
 }

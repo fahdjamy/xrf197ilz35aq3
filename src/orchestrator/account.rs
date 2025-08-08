@@ -14,9 +14,8 @@ use crate::{
 use cassandra_cpp::{PreparedStatement, Session};
 use config::Map;
 use sqlx::{PgConnection, PgPool};
-use std::collections::HashMap;
 use std::str::FromStr;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 pub async fn create_account(
     pool: &PgPool,

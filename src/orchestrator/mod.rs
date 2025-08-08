@@ -20,4 +20,6 @@ pub use currency::{convert_amount, save_currencies_rate};
 pub use helper::{commit_db_transaction, rollback_db_transaction, start_db_transaction};
 pub use ledger::create_ledger;
 pub use transaction::{credit_wallet, debit_wallet_transaction};
-pub use wallet::{create_wallet_holding, credit_wallet_holding, debit_wallet, get_wallet_holding};
+pub use wallet::{
+    create_wallet_holding, credit_wallet_holding, debit_wallet, find_user_wallet_for_acct,
+};
