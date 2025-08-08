@@ -199,12 +199,18 @@ pub async fn create_new_beneficiary_acct(
     Ok(Some(beneficiary_acct))
 }
 
-pub async fn get_user_accounts_by_currencies_and_types(
+pub async fn get_user_accounts_by_currencies_or_types(
     pool: &PgPool,
     currencies: &[String],
     acct_types: &[String],
     user_ctx: &UserContext,
 ) -> Result<Vec<(Account, WalletHolding)>, OrchestrateError> {
+    if currencies.is_empty() && acct_types.is_empty() {
+        return Err(OrchestrateError::InvalidArgument(
+            "no filter criteria specified to find user account".to_string(),
+        ));
+    }
+
     let query_currencies = currencies
         .iter()
         .map(|s| Currency::from_str(&s))

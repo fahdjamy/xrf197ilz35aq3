@@ -178,8 +178,8 @@ SELECT  id,
         acct_type as "acct_type: _"
 FROM user_account
 WHERE user_fp = $1
-    AND currency = ANY($2)
-    OR acct_type = ANY($3)
+    AND (array_length($2::currency_enum[], 1) IS NULL OR currency = ANY($2::currency_enum[]))
+    OR (array_length($3::account_type[], 1) IS NULL OR acct_type = ANY($3::account_type[]))
 "#,
         user_fp,
         currencies as &[Currency],

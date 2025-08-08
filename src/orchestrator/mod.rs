@@ -10,7 +10,7 @@ mod transaction;
 mod wallet;
 
 pub use account::{
-    create_account, create_new_beneficiary_acct, get_user_accounts_by_currencies_and_types,
+    create_account, create_new_beneficiary_acct, get_user_accounts_by_currencies_or_types,
 };
 pub use activity::{create_activity, find_last_user_activity};
 pub use block::create_block;
