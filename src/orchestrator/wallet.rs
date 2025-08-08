@@ -95,16 +95,18 @@ async fn get_wallet_holding<'a, E>(
 where
     E: Executor<'a, Database = Postgres>,
 {
-    let wallet_holding = fetch_wallet(pool, acct_id).await?;
-
-    Ok(Some(wallet_holding))
+    match fetch_wallet(pool, acct_id).await? {
+        Some(wallet_holding) => Ok(Some(wallet_holding)),
+        None => Ok(None),
+    }
 }
 
 pub async fn find_user_wallet_for_acct(
     pool: &PgPool,
     acct_id: &str,
 ) -> Result<Option<WalletHolding>, OrchestrateError> {
-    let wallet_holding = fetch_wallet(pool, acct_id).await?;
-
-    Ok(Some(wallet_holding))
+    match fetch_wallet(pool, acct_id).await? {
+        Some(wallet_holding) => Ok(Some(wallet_holding)),
+        None => Ok(None),
+    }
 }

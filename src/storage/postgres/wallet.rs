@@ -1,7 +1,7 @@
 use crate::core::{Currency, WalletHolding};
 use crate::PgDatabaseError;
 use rust_decimal::Decimal;
-use sqlx::{Executor, Postgres};
+use sqlx::{Error, Executor, Postgres};
 use tracing::info;
 
 #[tracing::instrument(skip(pg_pool, holding))]
@@ -41,7 +41,7 @@ VALUES ($1, $2, $3, $4)",
 pub async fn fetch_wallet<'a, E>(
     pg_pool: E,
     account_id: &str,
-) -> Result<WalletHolding, PgDatabaseError>
+) -> Result<Option<WalletHolding>, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
@@ -57,9 +57,13 @@ FROM wallet WHERE account_id = $1
         account_id
     )
     .fetch_one(pg_pool)
-    .await?;
+    .await;
 
-    Ok(result)
+    match result {
+        Ok(wallet) => Ok(Some(wallet)),
+        Err(Error::RowNotFound) => Ok(None),
+        Err(err) => Err(err.into()),
+    }
 }
 
 #[tracing::instrument(
