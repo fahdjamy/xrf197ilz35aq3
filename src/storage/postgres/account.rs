@@ -1,7 +1,7 @@
 use crate::core::{Account, AccountStatus, AccountType, BeneficiaryAccount, Currency};
 use crate::PgDatabaseError;
 use chrono::{DateTime, Utc};
-use sqlx::{Executor, Postgres};
+use sqlx::{Error, Executor, Postgres};
 use tracing::info;
 
 #[derive(sqlx::FromRow)]
@@ -102,9 +102,51 @@ FROM user_account WHERE id = $1
     .fetch_one(pg_pool)
     .await;
 
-    match saved_account {
+    handle_saved_account_result(saved_account)
+}
+
+#[tracing::instrument(
+    level = "debug",
+    skip(pg_pool, currency, acct_type),
+    name = "Find account by currency and account type"
+)]
+pub async fn find_account_by_currency_and_acct_type<'a, E>(
+    pg_pool: E,
+    currency: Currency,
+    acct_type: AccountType,
+) -> Result<Option<Account>, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    info!("finding account by currency and acct_type");
+    let saved_account = sqlx::query_as!(
+        AccountDO,
+        r#"
+SELECT  id,
+        locked,
+        user_fp,
+        timezone,
+        status as "status: _",
+        currency as "currency: _",
+        creation_time,
+        modification_time,
+        acct_type as "acct_type: _"
+FROM user_account WHERE currency = $1 AND acct_type = $2"#,
+        currency as Currency,
+        acct_type as AccountType,
+    )
+    .fetch_one(pg_pool)
+    .await;
+
+    handle_saved_account_result(saved_account)
+}
+
+fn handle_saved_account_result(
+    result: Result<AccountDO, Error>,
+) -> Result<Option<Account>, PgDatabaseError> {
+    match result {
         Ok(account) => Ok(Some(account.into())),
-        Err(sqlx::Error::RowNotFound) => Ok(None),
+        Err(Error::RowNotFound) => Ok(None),
         Err(err) => Err(err.into()),
     }
 }

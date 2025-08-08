@@ -4,15 +4,17 @@ use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
 use crate::storage::{
-    fetch_user_accounts_by_currencies_and_types, fetch_user_wallets, find_account_by_id,
-    save_account, save_beneficiary_account,
+    fetch_user_accounts_by_currencies_and_types, fetch_user_wallets,
+    find_account_by_currency_and_acct_type, find_account_by_id, save_account,
+    save_beneficiary_account,
 };
 use crate::{
-    commit_db_transaction, create_initial_block_chain, rollback_db_transaction,
-    start_db_transaction,
+    commit_db_transaction, create_initial_block_chain, find_user_wallet_for_acct,
+    rollback_db_transaction, start_db_transaction,
 };
 use cassandra_cpp::{PreparedStatement, Session};
 use config::Map;
+use sha3::digest::consts::P1;
 use sqlx::{PgConnection, PgPool};
 use std::str::FromStr;
 use tracing::{error, info};
@@ -112,13 +114,32 @@ async fn create_new_acct(
     Ok(Some(account))
 }
 
-pub async fn get_account(
+pub async fn find_user_acct_by_id(
     pool: &PgPool,
     account_id: &str,
 ) -> Result<Option<Account>, OrchestrateError> {
     match find_account_by_id(pool, account_id).await? {
         None => Ok(None),
         Some(account) => Ok(Some(account)),
+    }
+}
+
+pub async fn find_account_by_currency_and_type(
+    pool: &PgPool,
+    currency: &str,
+    acct_type: &str,
+) -> Result<Option<(Account, WalletHolding)>, OrchestrateError> {
+    let currency = Currency::from_str(currency)
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+    let acct_type = AccountType::from_str(acct_type)
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+
+    match find_account_by_currency_and_acct_type(pool, currency, acct_type).await? {
+        None => Ok(None),
+        Some(account) => match find_user_wallet_for_acct(pool, &account.id).await? {
+            None => Ok(None),
+            Some(saved_wallet) => Ok(Some((account, saved_wallet))),
+        },
     }
 }
 
