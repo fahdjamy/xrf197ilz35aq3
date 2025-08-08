@@ -5,10 +5,10 @@ package proto.account.v1;
 import "google/protobuf/timestamp.proto";
 
 service AccountService {
+  rpc FindWallet(FindWalletRequest) returns (FindWalletResponse);
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
-  rpc GetUserAccount(GetUserAccountRequest) returns (GetUserAccountResponse);
-  rpc GetUserAccounts(GetUserAccountsRequest) returns (GetUserAccountsResponse);
-  rpc GetWalletHolding(GetWalletHoldingRequest) returns (GetWalletHoldingResponse);
+  rpc FindAccountsByCurrencyOrType(FindAccountsByCurrencyOrTypeRequest) returns (FindAccountsByCurrencyOrTypeResponse);
+  rpc FindAccountByCurrencyAndType(FindAccountByCurrencyAndTypeRequest) returns (FindAccountByCurrencyAndTypeResponse);
 }
 
 message AccountResponse {
@@ -39,21 +39,21 @@ message CreateAccountResponse {
 }
 
 ///// Get Account detail
-message GetUserAccountRequest {
+message FindAccountByCurrencyAndTypeRequest {
   string currency = 1;
   string acct_type = 2;
 }
 
-message GetUserAccountResponse {
+message FindAccountByCurrencyAndTypeResponse {
   AccountResponse account = 1;
 }
 
 ////// Get account balance
-message GetWalletHoldingRequest {
+message FindWalletRequest {
   string account_id = 1;
 }
 
-message GetWalletHoldingResponse {
+message FindWalletResponse {
   WalletResponse wallet_holding = 1;
 }
 
@@ -66,11 +66,11 @@ message AccountTypesList {
   repeated string types = 1;
 }
 
-message GetUserAccountsRequest {
+message FindAccountsByCurrencyOrTypeRequest {
   optional CurrencyList currencies = 1;
   optional AccountTypesList acct_types = 2;
 }
 
-message GetUserAccountsResponse {
+message FindAccountsByCurrencyOrTypeResponse {
   repeated AccountResponse accounts = 1;
 }

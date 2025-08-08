@@ -3,9 +3,10 @@ use crate::core::{Account, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::grpc_services::account_service_server::AccountService;
 use crate::grpc_services::{
-    AccountResponse, CreateAccountRequest, CreateAccountResponse, GetUserAccountRequest,
-    GetUserAccountResponse, GetUserAccountsRequest, GetUserAccountsResponse,
-    GetWalletHoldingRequest, GetWalletHoldingResponse, WalletResponse,
+    AccountResponse, CreateAccountRequest, CreateAccountResponse,
+    FindAccountByCurrencyAndTypeRequest, FindAccountByCurrencyAndTypeResponse,
+    FindAccountsByCurrencyOrTypeRequest, FindAccountsByCurrencyOrTypeResponse, FindWalletRequest,
+    FindWalletResponse, WalletResponse,
 };
 use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
@@ -44,6 +45,37 @@ impl AccountServiceManager {
 
 #[tonic::async_trait]
 impl AccountService for AccountServiceManager {
+    async fn find_wallet(
+        &self,
+        request: Request<FindWalletRequest>,
+    ) -> Result<Response<FindWalletResponse>, Status> {
+        let event = "getWalletHolding";
+        trace_request!(request, "get_wallet_holding");
+        get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
+
+        let req = request.into_inner();
+        let wallet = find_user_wallet_for_acct(&self.pg_pool, &req.account_id)
+            .await
+            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+
+        match wallet {
+            None => Err(Status::not_found(format!(
+                "no wallet found for account id = {}",
+                &req.account_id
+            ))),
+            Some(found_wallet) => Ok(Response::new(FindWalletResponse {
+                wallet_holding: Some(WalletResponse {
+                    balance: found_wallet.balance.to_f32().unwrap_or_default(),
+                    currency: found_wallet.currency.to_string(),
+                    modification_time: Some(Timestamp {
+                        seconds: found_wallet.modification_time.timestamp(),
+                        nanos: found_wallet.modification_time.timestamp_subsec_nanos() as i32,
+                    }),
+                }),
+            })),
+        }
+    }
+
     async fn create_account(
         &self,
         request: Request<CreateAccountRequest>,
@@ -75,34 +107,10 @@ impl AccountService for AccountServiceManager {
         }))
     }
 
-    async fn get_user_account(
+    async fn find_accounts_by_currency_or_type(
         &self,
-        request: Request<GetUserAccountRequest>,
-    ) -> Result<Response<GetUserAccountResponse>, Status> {
-        let event = "getUserAccount";
-        trace_request!(request, "get_user_account");
-        let req = request.into_inner();
-
-        let (account, wallet) =
-            match find_account_by_currency_and_type(&self.pg_pool, &req.currency, &req.acct_type)
-                .await
-                .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?
-            {
-                Some((account, wallet)) => (account, wallet),
-                None => {
-                    return Err(Status::not_found("no account found"));
-                }
-            };
-
-        Ok(Response::new(GetUserAccountResponse {
-            account: Some(create_account_response(&account, &wallet)),
-        }))
-    }
-
-    async fn get_user_accounts(
-        &self,
-        request: Request<GetUserAccountsRequest>,
-    ) -> Result<Response<GetUserAccountsResponse>, Status> {
+        request: Request<FindAccountsByCurrencyOrTypeRequest>,
+    ) -> Result<Response<FindAccountsByCurrencyOrTypeResponse>, Status> {
         let event = "get_user_accounts";
         trace_request!(request, "get_user_account");
         let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
@@ -133,40 +141,33 @@ impl AccountService for AccountServiceManager {
             .map(|(acct, wallet)| create_account_response(&acct, &wallet))
             .collect();
 
-        Ok(Response::new(GetUserAccountsResponse {
+        Ok(Response::new(FindAccountsByCurrencyOrTypeResponse {
             accounts: account_resp,
         }))
     }
 
-    async fn get_wallet_holding(
+    async fn find_account_by_currency_and_type(
         &self,
-        request: Request<GetWalletHoldingRequest>,
-    ) -> Result<Response<GetWalletHoldingResponse>, Status> {
-        let event = "getWalletHolding";
-        trace_request!(request, "get_wallet_holding");
-        get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
-
+        request: Request<FindAccountByCurrencyAndTypeRequest>,
+    ) -> Result<Response<FindAccountByCurrencyAndTypeResponse>, Status> {
+        let event = "getUserAccount";
+        trace_request!(request, "get_user_account");
         let req = request.into_inner();
-        let wallet = find_user_wallet_for_acct(&self.pg_pool, &req.account_id)
-            .await
-            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
-        match wallet {
-            None => Err(Status::not_found(format!(
-                "no wallet found for account id = {}",
-                &req.account_id
-            ))),
-            Some(found_wallet) => Ok(Response::new(GetWalletHoldingResponse {
-                wallet_holding: Some(WalletResponse {
-                    balance: found_wallet.balance.to_f32().unwrap_or_default(),
-                    currency: found_wallet.currency.to_string(),
-                    modification_time: Some(Timestamp {
-                        seconds: found_wallet.modification_time.timestamp(),
-                        nanos: found_wallet.modification_time.timestamp_subsec_nanos() as i32,
-                    }),
-                }),
-            })),
-        }
+        let (account, wallet) =
+            match find_account_by_currency_and_type(&self.pg_pool, &req.currency, &req.acct_type)
+                .await
+                .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?
+            {
+                Some((account, wallet)) => (account, wallet),
+                None => {
+                    return Err(Status::not_found("no account found"));
+                }
+            };
+
+        Ok(Response::new(FindAccountByCurrencyAndTypeResponse {
+            account: Some(create_account_response(&account, &wallet)),
+        }))
     }
 }
 
