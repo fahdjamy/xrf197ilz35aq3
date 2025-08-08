@@ -1,4 +1,5 @@
 use crate::context::{ApplicationContext, UserContext};
+use crate::core::WalletHolding;
 use crate::error::OrchestrateError;
 use crate::grpc_services::account_service_server::AccountService;
 use crate::grpc_services::{
@@ -9,8 +10,9 @@ use crate::grpc_services::{
 use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
 use crate::{
-    create_account, generate_request_id, get_user_accounts_by_currencies_and_types,
-    DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
+    create_account, find_user_wallet_for_acct, generate_request_id,
+    get_user_accounts_by_currencies_and_types, DEFAULT_TIMEZONE, REQUEST_ID_KEY,
+    XRF_USER_FINGERPRINT,
 };
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
@@ -168,7 +170,31 @@ impl AccountService for AccountServiceManager {
         &self,
         request: Request<GetWalletHoldingRequest>,
     ) -> Result<Response<GetWalletHoldingResponse>, Status> {
-        unimplemented!()
+        let event = "getWalletHolding";
+        trace_request!(request, "get_wallet_holding");
+        get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
+
+        let req = request.into_inner();
+        let wallet = find_user_wallet_for_acct(&self.pg_pool, &req.account_id)
+            .await
+            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+
+        match wallet {
+            None => Err(Status::not_found(format!(
+                "no wallet found for account id = {}",
+                &req.account_id
+            ))),
+            Some(found_wallet) => Ok(Response::new(GetWalletHoldingResponse {
+                wallet_holding: Some(WalletResponse {
+                    balance: found_wallet.balance.to_f32().unwrap_or_default(),
+                    currency: found_wallet.currency.to_string(),
+                    modification_time: Some(Timestamp {
+                        seconds: found_wallet.modification_time.timestamp(),
+                        nanos: found_wallet.modification_time.timestamp_subsec_nanos() as i32,
+                    }),
+                }),
+            })),
+        }
     }
 }
 
