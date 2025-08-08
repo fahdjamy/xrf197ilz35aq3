@@ -14,7 +14,6 @@ use crate::{
 };
 use cassandra_cpp::{PreparedStatement, Session};
 use config::Map;
-use sha3::digest::consts::P1;
 use sqlx::{PgConnection, PgPool};
 use std::str::FromStr;
 use tracing::{error, info};

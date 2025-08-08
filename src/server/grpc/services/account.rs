@@ -1,5 +1,5 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::WalletHolding;
+use crate::core::{Account, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::grpc_services::account_service_server::AccountService;
 use crate::grpc_services::{
@@ -10,9 +10,9 @@ use crate::grpc_services::{
 use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
 use crate::{
-    create_account, find_user_wallet_for_acct, generate_request_id,
-    get_user_accounts_by_currencies_and_types, DEFAULT_TIMEZONE, REQUEST_ID_KEY,
-    XRF_USER_FINGERPRINT,
+    create_account, find_account_by_currency_and_type, find_user_wallet_for_acct,
+    generate_request_id, get_user_accounts_by_currencies_or_types, DEFAULT_TIMEZONE,
+    REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
 };
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
@@ -59,7 +59,7 @@ impl AccountService for AccountServiceManager {
         );
         let user_ctx = UserContext::load_user_context(user_fp, req.timezone.clone(), None, None);
 
-        let (created_acct, created_wallet) = create_account(
+        let (account, wallet) = create_account(
             &self.pg_pool,
             req.currency,
             req.acct_type,
@@ -71,31 +71,7 @@ impl AccountService for AccountServiceManager {
         .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(CreateAccountResponse {
-            account: Some(AccountResponse {
-                locked: created_acct.locked,
-                status: created_acct.status.to_string(),
-                account_id: created_acct.id.to_string(),
-                account_type: created_acct.account_type.to_string(),
-                creation_time: Some(Timestamp {
-                    seconds: created_acct.creation_time.timestamp(),
-                    nanos: created_acct.creation_time.timestamp_subsec_nanos() as i32,
-                }),
-                modification_time: Some(Timestamp {
-                    seconds: created_acct.modification_time.timestamp(),
-                    nanos: created_acct.modification_time.timestamp_subsec_nanos() as i32,
-                }),
-                wallet_holding: Some(WalletResponse {
-                    balance: f32::try_from(created_wallet.balance).unwrap_or_else(|er| {
-                        warn!("Err converting balance : err={}, defaulted to 0.0", er);
-                        0.0
-                    }),
-                    currency: created_wallet.currency.to_string(),
-                    modification_time: Some(Timestamp {
-                        seconds: created_wallet.modification_time.timestamp(),
-                        nanos: created_wallet.modification_time.timestamp_subsec_nanos() as i32,
-                    }),
-                }),
-            }),
+            account: Some(create_account_response(&account, &wallet)),
         }))
     }
 
@@ -103,7 +79,24 @@ impl AccountService for AccountServiceManager {
         &self,
         request: Request<GetUserAccountRequest>,
     ) -> Result<Response<GetUserAccountResponse>, Status> {
-        unimplemented!()
+        let event = "getUserAccount";
+        trace_request!(request, "get_user_account");
+        let req = request.into_inner();
+
+        let (account, wallet) =
+            match find_account_by_currency_and_type(&self.pg_pool, &req.currency, &req.acct_type)
+                .await
+                .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?
+            {
+                Some((account, wallet)) => (account, wallet),
+                None => {
+                    return Err(Status::not_found("no account found"));
+                }
+            };
+
+        Ok(Response::new(GetUserAccountResponse {
+            account: Some(create_account_response(&account, &wallet)),
+        }))
     }
 
     async fn get_user_accounts(
@@ -126,7 +119,7 @@ impl AccountService for AccountServiceManager {
             Some(acct_types_list) => acct_types_list.types.iter().cloned().collect(),
         };
 
-        let saved_accounts_and_wallet = get_user_accounts_by_currencies_and_types(
+        let saved_accounts_and_wallet = get_user_accounts_by_currencies_or_types(
             &self.pg_pool,
             &currencies,
             &acct_types,
@@ -137,28 +130,7 @@ impl AccountService for AccountServiceManager {
 
         let account_resp: Vec<AccountResponse> = saved_accounts_and_wallet
             .iter()
-            .map(|(acct, wallet)| AccountResponse {
-                locked: acct.locked,
-                status: acct.status.to_string(),
-                account_id: acct.id.to_string(),
-                account_type: acct.account_type.to_string(),
-                creation_time: Some(Timestamp {
-                    seconds: acct.creation_time.timestamp(),
-                    nanos: acct.creation_time.timestamp_subsec_nanos() as i32,
-                }),
-                modification_time: Some(Timestamp {
-                    seconds: acct.modification_time.timestamp(),
-                    nanos: acct.modification_time.timestamp_subsec_nanos() as i32,
-                }),
-                wallet_holding: Some(WalletResponse {
-                    currency: wallet.currency.to_string(),
-                    balance: wallet.balance.to_f32().unwrap_or_default(),
-                    modification_time: Some(Timestamp {
-                        seconds: wallet.modification_time.timestamp(),
-                        nanos: wallet.modification_time.timestamp_subsec_nanos() as i32,
-                    }),
-                }),
-            })
+            .map(|(acct, wallet)| create_account_response(&acct, &wallet))
             .collect();
 
         Ok(Response::new(GetUserAccountsResponse {
@@ -213,5 +185,33 @@ fn map_orchestrator_err_to_grpc_error(event: &str, err: OrchestrateError) -> Sta
             Status::internal("Internal server error")
         }
         _ => Status::internal("Internal server error"),
+    }
+}
+
+fn create_account_response(account: &Account, wallet: &WalletHolding) -> AccountResponse {
+    AccountResponse {
+        locked: account.locked,
+        status: account.status.to_string(),
+        account_id: account.id.to_string(),
+        account_type: account.account_type.to_string(),
+        creation_time: Some(Timestamp {
+            seconds: account.creation_time.timestamp(),
+            nanos: account.creation_time.timestamp_subsec_nanos() as i32,
+        }),
+        modification_time: Some(Timestamp {
+            seconds: account.modification_time.timestamp(),
+            nanos: account.modification_time.timestamp_subsec_nanos() as i32,
+        }),
+        wallet_holding: Some(WalletResponse {
+            balance: f32::try_from(wallet.balance).unwrap_or_else(|er| {
+                warn!("Err converting balance : err={}, defaulted to 0.0", er);
+                0.0
+            }),
+            currency: wallet.currency.to_string(),
+            modification_time: Some(Timestamp {
+                seconds: wallet.modification_time.timestamp(),
+                nanos: wallet.modification_time.timestamp_subsec_nanos() as i32,
+            }),
+        }),
     }
 }
