@@ -3,15 +3,20 @@ use crate::core::{Account, AccountType, Currency, WalletHolding};
 use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
-use crate::storage::{save_account, save_beneficiary_account};
+use crate::storage::{
+    fetch_user_accounts_by_currencies_and_types, fetch_user_wallets, save_account,
+    save_beneficiary_account,
+};
 use crate::{
     commit_db_transaction, create_initial_block_chain, rollback_db_transaction,
     start_db_transaction,
 };
 use cassandra_cpp::{PreparedStatement, Session};
+use config::Map;
 use sqlx::{PgConnection, PgPool};
+use std::collections::HashMap;
 use std::str::FromStr;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub async fn create_account(
     pool: &PgPool,
@@ -193,4 +198,59 @@ pub async fn create_new_beneficiary_acct(
     );
 
     Ok(Some(beneficiary_acct))
+}
+
+pub async fn get_user_accounts_by_currencies_and_types(
+    pool: &PgPool,
+    currencies: &[String],
+    acct_types: &[String],
+    user_ctx: &UserContext,
+) -> Result<Vec<(Account, WalletHolding)>, OrchestrateError> {
+    let query_currencies = currencies
+        .iter()
+        .map(|s| Currency::from_str(&s))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+    let query_acct_types = acct_types
+        .iter()
+        .map(|s| AccountType::from_str(&s))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+
+    let user_accounts = fetch_user_accounts_by_currencies_and_types(
+        pool,
+        &user_ctx.user_fp,
+        &query_currencies,
+        &query_acct_types,
+    )
+    .await?;
+
+    let mut account_ids_to_fetch = Vec::new();
+    user_accounts.iter().for_each(|account| {
+        account_ids_to_fetch.push(account.id.clone());
+    });
+
+    let user_wallet_holdings: Map<String, WalletHolding> =
+        fetch_user_wallets(pool, &account_ids_to_fetch)
+            .await?
+            .iter()
+            .map(|wallet| (wallet.account_id.clone(), wallet.clone()))
+            .collect();
+
+    let mut result: Vec<(Account, WalletHolding)> = Vec::new();
+    user_accounts
+        .iter()
+        .for_each(|account| match user_wallet_holdings.get(&account.id) {
+            Some(wallet_holding) => {
+                result.push((account.clone(), wallet_holding.clone()));
+            }
+            None => {
+                error!(
+                    ":::INVALID RECORD STATE:::: accountId {} does not have a wallet holding",
+                    account.id
+                );
+            }
+        });
+
+    Ok(result)
 }
