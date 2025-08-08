@@ -78,7 +78,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 pub async fn find_account_by_id<'a, E>(
     pg_pool: E,
     account_id: &str,
-) -> Result<Account, PgDatabaseError>
+) -> Result<Option<Account>, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
@@ -100,9 +100,13 @@ FROM user_account WHERE id = $1
         account_id
     )
     .fetch_one(pg_pool)
-    .await?;
+    .await;
 
-    Ok(saved_account.into())
+    match saved_account {
+        Ok(account) => Ok(Some(account.into())),
+        Err(sqlx::Error::RowNotFound) => Ok(None),
+        Err(err) => Err(err.into()),
+    }
 }
 
 #[tracing::instrument(
@@ -178,11 +182,9 @@ SELECT  id,
         acct_type as "acct_type: _"
 FROM user_account
 WHERE user_fp = $1
-    AND (array_length($2::currency_enum[], 1) IS NULL OR currency = ANY($2::currency_enum[]))
-    OR (array_length($3::account_type[], 1) IS NULL OR acct_type = ANY($3::account_type[]))
+    AND (array_length($2::account_type[], 1) IS NULL OR acct_type = ANY($2::account_type[]))
 "#,
         user_fp,
-        currencies as &[Currency],
         acct_types as &[AccountType]
     )
     .fetch_all(pg_pool)

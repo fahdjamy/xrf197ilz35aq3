@@ -68,7 +68,14 @@ pub async fn perform_wallet_transaction(
     mut ledger_desc: Vec<String>,
 ) -> Result<MonetaryTransaction, OrchestrateError> {
     let mut db_tx = start_db_transaction(pool, event).await?;
-    let user_acct = find_account_by_id(&mut *db_tx, &account_id).await?;
+    let user_acct = match find_account_by_id(&mut *db_tx, &account_id).await? {
+        Some(acct) => acct,
+        None => {
+            return Err(OrchestrateError::NotFoundError(
+                "account not found".to_string(),
+            ));
+        }
+    };
     if user_acct.locked
         || user_acct.status == AccountStatus::Frozen
         || user_acct.status == AccountStatus::Inactive
@@ -195,7 +202,14 @@ async fn charge_commission(
         ));
     }
 
-    let user_acct = find_account_by_id(&mut **db_tx, &acct_id).await?;
+    let user_acct = match find_account_by_id(&mut **db_tx, &acct_id).await? {
+        Some(account) => account,
+        None => {
+            return Err(OrchestrateError::NotFoundError(
+                "account not found".to_string(),
+            ));
+        }
+    };
     if user_acct.locked
         || user_acct.status == AccountStatus::Frozen
         || user_acct.status == AccountStatus::Inactive
@@ -205,7 +219,14 @@ async fn charge_commission(
         ));
     }
 
-    let system_acct = find_account_by_id(&mut **db_tx, &beneficiary_account_id).await?;
+    let system_acct = match find_account_by_id(&mut **db_tx, &beneficiary_account_id).await? {
+        Some(account) => account,
+        None => {
+            return Err(OrchestrateError::InvalidRecordState(
+                "system account not found".to_string(),
+            ));
+        }
+    };
     let amount_to_save = convert_amount(
         &mut **db_tx,
         amount,

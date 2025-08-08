@@ -4,8 +4,8 @@ use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
 use crate::storage::{
-    fetch_user_accounts_by_currencies_and_types, fetch_user_wallets, save_account,
-    save_beneficiary_account,
+    fetch_user_accounts_by_currencies_and_types, fetch_user_wallets, find_account_by_id,
+    save_account, save_beneficiary_account,
 };
 use crate::{
     commit_db_transaction, create_initial_block_chain, rollback_db_transaction,
@@ -110,6 +110,16 @@ async fn create_new_acct(
     }
 
     Ok(Some(account))
+}
+
+pub async fn get_account(
+    pool: &PgPool,
+    account_id: &str,
+) -> Result<Option<Account>, OrchestrateError> {
+    match find_account_by_id(pool, account_id).await? {
+        None => Ok(None),
+        Some(account) => Ok(Some(account)),
+    }
 }
 
 pub async fn create_new_beneficiary_acct(
