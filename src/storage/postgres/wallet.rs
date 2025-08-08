@@ -64,6 +64,35 @@ FROM wallet WHERE account_id = $1
 
 #[tracing::instrument(
     level = "debug",
+    skip(pg_pool, account_ids),
+    name = "fetch user wallet holdings"
+)]
+pub async fn fetch_user_wallets<'a, E>(
+    pg_pool: E,
+    account_ids: &[String],
+) -> Result<Vec<WalletHolding>, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    let result: Vec<WalletHolding> = sqlx::query_as!(
+        WalletHolding,
+        r#"
+SELECT balance,
+       currency as "currency: _",
+       account_id,
+       modification_time
+FROM wallet WHERE account_id = ANY($1)
+"#,
+        account_ids,
+    )
+    .fetch_all(pg_pool)
+    .await?;
+
+    Ok(result)
+}
+
+#[tracing::instrument(
+    level = "debug",
     skip(pg_pool, holding),
     name = "update wallet holding information"
 )]
