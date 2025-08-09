@@ -40,8 +40,8 @@ bytes = "1.10.1"
 
 prost = { version = "0.14.1" }
 prost-types = "0.14.1"
-tonic-prost = "0.14.0"
-tonic = { version = "0.14.0", features = ["tls-native-roots"] }
+tonic-prost = "0.14.1"
+tonic = { version = "0.14.1", features = ["tls-native-roots"] }
 serde_json = "1.0.142"
 
 [dependencies.sqlx]
@@ -58,7 +58,7 @@ features = [
 ]
 
 [build-dependencies]
-tonic-prost-build = "0.14.0"
+tonic-prost-build = "0.14.1"
 
 [dev-dependencies]
 testcontainers = "0.24.0"
