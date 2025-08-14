@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package proto.xrfq3.v1;
+
+service AppService {
+  rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse);
+}
+
+message CheckHealthResponse {
+  bool is_up = 1;
+  string app_id = 2;
+  string region = 3;
+}
+
+message CheckHealthRequest {}

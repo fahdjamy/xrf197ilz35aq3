@@ -1,6 +1,7 @@
 use crate::context::{ApplicationContext, Environment};
 use crate::grpc_services::account_service_server::AccountServiceServer;
-use crate::server::grpc::AccountServiceManager;
+use crate::grpc_services::app_service_server::AppServiceServer;
+use crate::server::grpc::{AccountServiceManager, AppServiceManager};
 use crate::{GrpcServerConfig, CERT_PEM_PATH, KEY_PEM_PATH};
 use anyhow::Context;
 use bytes::Bytes;
@@ -19,6 +20,7 @@ const SSL_PEM_SERVE_CERT_PATH: &str = "./local/secret/ssl/server.crt";
 pub struct GrpcServer {
     timeout: Duration,
     addr: core::net::SocketAddr,
+    app_service_manager: AppServiceManager,
     account_service_manager: AccountServiceManager,
 }
 
@@ -43,9 +45,12 @@ impl GrpcServer {
             app_ctx.clone(),
         );
 
+        let app_service_manager = AppServiceManager::new(app_ctx.clone());
+
         let config_timeout = config.timeout;
         Ok(GrpcServer {
             addr,
+            app_service_manager,
             account_service_manager,
             timeout: Duration::from_millis(config_timeout as u64),
         })
@@ -65,6 +70,7 @@ impl GrpcServer {
             .tls_config(ServerTlsConfig::new().identity(Identity::from_pem(cert_pem, key_pem)))
             .context("Failed to create TLS config")?
             .max_connection_age(self.timeout)
+            .add_service(AppServiceServer::new(self.app_service_manager))
             .add_service(AccountServiceServer::new(self.account_service_manager))
             .serve(self.addr)
             .await
