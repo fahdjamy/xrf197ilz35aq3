@@ -18,8 +18,12 @@ impl AppServiceManager {
 impl AppService for AppServiceManager {
     async fn check_health(
         &self,
-        request: Request<CheckHealthRequest>,
+        _: Request<CheckHealthRequest>,
     ) -> Result<Response<CheckHealthResponse>, Status> {
-        todo!()
+        Ok(Response::new(CheckHealthResponse {
+            is_up: true,
+            app_id: self.app_ctx.app_id.clone().to_string(),
+            region: self.app_ctx.block_region.clone().to_string(),
+        }))
     }
 }
