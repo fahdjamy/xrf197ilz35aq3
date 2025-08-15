@@ -4,7 +4,8 @@ use tracing::{error, info};
 use uuid::Uuid;
 use xrfq3::storage::{connect_session, PreparedAppStatements};
 use xrfq3::{
-    load_config, setup_tracing_logger, ApplicationContext, Environment, APP_REGION, XRF_Q3_ENV,
+    load_config, setup_tracing_logger, ApplicationContext, Environment, Server, APP_REGION,
+    XRF_Q3_ENV,
 };
 
 #[tokio::main]
@@ -56,8 +57,28 @@ pub async fn main() -> anyhow::Result<()> {
 
     let _guard = setup_tracing_logger(&config.app.name, &config.log);
 
-    info!("!!!xrf197ilz35aq3!!!");
+    let server = Server::build_and_load(config, cassandra_session, app_ctx)
+        .await
+        .map_err(|err| {
+            error!("failed to build server, err={}", err);
+            anyhow!("failed to build server, err={}", err)
+        })?;
 
+    // start the servers
+    // these tasks is spawn in a thread
+    // let grpc_server_task = tokio::spawn(server.grpc_server.run_until_stopped(&environment.clone()));
+    let grpc_server_task = tokio::spawn(async move {
+        server
+            .grpc_server
+            .run_until_stopped(&environment)
+            .await
+            .map_err(|err| {
+                error!("server stopped due to error={}", err);
+                anyhow!("server stopped due to error={}", err)
+            })
+    });
+
+    info!("!!! xrf197ilz35aq3 started successfully !!!");
     Ok(())
 }
 

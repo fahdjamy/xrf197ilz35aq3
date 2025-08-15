@@ -1,6 +1,6 @@
 use crate::core::BlockRegion;
 use crate::storage::{get_redis_client, PreparedAppStatements};
-use crate::RedisConfig;
+use crate::{Environment, RedisConfig};
 use redis::aio::ConnectionManager;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
@@ -74,40 +74,5 @@ impl ApplicationContext {
             is_test_ctx: true,
             app_env: Environment::Test,
         })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Environment {
-    Dev,
-    Live,
-    Test,
-    Staging,
-    Production,
-}
-
-impl Environment {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Environment::Dev => "dev",
-            Environment::Live => "live",
-            Environment::Test => "test",
-            Environment::Staging => "stg",
-            Environment::Production => "prod",
-        }
-    }
-
-    pub fn is_local(&self) -> bool {
-        *self == Environment::Dev
-    }
-
-    pub fn is_not_local(&self) -> bool {
-        !self.is_local()
-    }
-}
-
-impl Display for Environment {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
     }
 }

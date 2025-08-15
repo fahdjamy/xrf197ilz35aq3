@@ -1,8 +1,8 @@
-use crate::context::{ApplicationContext, Environment};
+use crate::context::ApplicationContext;
 use crate::grpc_services::account_service_server::AccountServiceServer;
 use crate::grpc_services::app_service_server::AppServiceServer;
 use crate::server::grpc::{AccountServiceManager, AppServiceManager};
-use crate::{GrpcServerConfig, CERT_PEM_PATH, KEY_PEM_PATH};
+use crate::{Environment, GrpcServerConfig, CERT_PEM_PATH, KEY_PEM_PATH};
 use anyhow::Context;
 use bytes::Bytes;
 use cassandra_cpp::Session;

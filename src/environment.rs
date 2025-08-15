@@ -2,7 +2,9 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Environment {
+    Dev,
     Live,
+    Test,
     Local,
     Staging,
     Production,
@@ -11,15 +13,17 @@ pub enum Environment {
 impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Environment::Local => "local",
+            Environment::Dev => "dev",
             Environment::Live => "live",
+            Environment::Test => "live",
+            Environment::Local => "local",
             Environment::Staging => "stg",
             Environment::Production => "prod",
         }
     }
 
     pub fn is_local(&self) -> bool {
-        *self == Environment::Local
+        *self == Environment::Local || *self == Environment::Dev
     }
 
     pub fn is_not_local(&self) -> bool {
@@ -37,10 +41,12 @@ impl TryFrom<String> for Environment {
     type Error = String;
     fn try_from(env: String) -> Result<Self, Self::Error> {
         match env.to_lowercase().as_str() {
-            "live" => Ok(Environment::Live),
-            "stg" => Ok(Environment::Staging),
-            "prod" => Ok(Environment::Production),
-            "dev" | "local" => Ok(Environment::Local),
+            "dev" | "DEV" => Ok(Environment::Local),
+            "live" | "LIVE" => Ok(Environment::Live),
+            "local" | "LOCAL" => Ok(Environment::Local),
+            "test" | "TEST" | "TESTING" => Ok(Environment::Test),
+            "stg" | "STAG" | "STAGING" => Ok(Environment::Staging),
+            "prod" | "PROD" | "PRODUCTION" => Ok(Environment::Production),
             _ => Err(format!("Unknown environment: {}", env)),
         }
     }
