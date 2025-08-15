@@ -1,17 +1,80 @@
 use anyhow::anyhow;
+use std::env;
 use tracing::{error, info};
-use xrfq3::{load_config, setup_tracing_logger};
+use uuid::Uuid;
+use xrfq3::storage::{connect_session, PreparedAppStatements};
+use xrfq3::{
+    load_config, setup_tracing_logger, ApplicationContext, Environment, APP_REGION, XRF_Q3_ENV,
+};
 
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
-    let config = load_config().map_err(|err| {
+    // load app environment. default to dev (local/dev) if no env is specified
+    let environment = load_environment().map_err(|err| {
+        error!("Failed to load environment, err={}", err);
+        anyhow!("Failed to load environment, err={}", err)
+    })?;
+
+    // load configurations
+    let config = load_config(&environment).map_err(|err| {
         error!("Failed to load configs, err={}", err);
         anyhow!("Failed to load configuration: {}", err)
     })?;
+
+    let cassandra_session = match connect_session(&config.database.cassandra).await {
+        Ok(cassandra_session) => cassandra_session,
+        Err(err) => return Err(anyhow!("Failed to connect to Cassandra: {}", err)),
+    };
+
+    let prepared_stmts = match PreparedAppStatements::new(&cassandra_session).await {
+        Ok(stmts) => stmts,
+        Err(err) => {
+            return Err(anyhow!("failed to load prepared-statements, err={}", err));
+        }
+    };
+
+    let region = match get_region_from_env(&environment) {
+        None => {
+            return Err(anyhow!("region not found"));
+        }
+        Some(region) => region,
+    };
+
+    let app_ctx = match ApplicationContext::load(
+        Uuid::new_v4().to_string(),
+        region,
+        &config.database.redis_config,
+        prepared_stmts,
+    )
+    .await
+    {
+        Ok(app_ctx) => app_ctx,
+        Err(err) => {
+            return Err(anyhow!("failed to load application context: {}", err));
+        }
+    };
 
     let _guard = setup_tracing_logger(&config.app.name, &config.log);
 
     info!("!!!xrf197ilz35aq3!!!");
 
     Ok(())
+}
+
+fn get_region_from_env(env: &Environment) -> Option<String> {
+    match env::var(APP_REGION) {
+        Ok(region) => Some(region),
+        Err(_) => {
+            if env.is_local() {
+                return Some("USEastOhio".to_string());
+            };
+            None
+        }
+    }
+}
+
+fn load_environment() -> Result<Environment, String> {
+    env::var(XRF_Q3_ENV)
+        .unwrap_or_else(|_| "local".into())
+        .try_into()
 }
