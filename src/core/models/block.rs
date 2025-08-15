@@ -51,10 +51,10 @@ impl FromStr for BlockRegion {
     type Err = DomainError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "USEastOhio" => Ok(BlockRegion::USEastOhio),
             "USWestOregon" => Ok(BlockRegion::USEastOhio),
             "MexicoCentral" => Ok(BlockRegion::MexicoCentral),
             "USWestNVirginia" => Ok(BlockRegion::USWestNVirginia),
+            "USEastOhio" | "us-east-2" => Ok(BlockRegion::USEastOhio),
             _ => Err(DomainError::ParseError("Unknown block region".to_string())),
         }
     }
