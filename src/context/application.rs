@@ -1,21 +1,16 @@
 use crate::core::BlockRegion;
 use crate::storage::{get_redis_client, PreparedAppStatements};
 use crate::RedisConfig;
-use chrono::Utc;
 use redis::aio::ConnectionManager;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct ApplicationContext {
-    pub app_id: u64,
-    pub name: String,
-    pub timestamp: u64,
+    pub app_id: String,
     pub is_test_ctx: bool,
     pub app_env: Environment,
-    pub ben_account_id: String,
     pub block_region: BlockRegion,
     pub redis_conn: ConnectionManager,
     pub statements: Arc<PreparedAppStatements>,
@@ -25,8 +20,8 @@ impl Debug for ApplicationContext {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "AppCxt, appId={}, name={}, is_test_ctx={}, region={}, ben_acct={}",
-            self.app_id, self.name, self.is_test_ctx, self.block_region, self.ben_account_id
+            "AppCxt, appId={}, appName=xrfQ3, is_test_ctx={}, region={}",
+            self.app_id, self.is_test_ctx, self.block_region
         )
     }
 }
@@ -39,10 +34,8 @@ impl Display for ApplicationContext {
 
 impl ApplicationContext {
     pub async fn load(
-        app_id: u64,
+        app_id: String,
         region: String,
-        app_name: String,
-        ben_account_id: String,
         redis_config: &RedisConfig,
         statements: PreparedAppStatements,
     ) -> Result<Self, String> {
@@ -58,16 +51,13 @@ impl ApplicationContext {
             statements,
             redis_conn,
             block_region,
-            name: app_name,
-            ben_account_id,
             is_test_ctx: false,
             app_env: Environment::Dev, // TODO: Change this and load environment
-            timestamp: Utc::now().timestamp() as u64,
         })
     }
 
     pub async fn load_test_ctx(
-        app_id: u64,
+        app_id: String,
         region: String,
         redis_config: &RedisConfig,
         statements: PreparedAppStatements,
@@ -83,9 +73,6 @@ impl ApplicationContext {
             block_region,
             is_test_ctx: true,
             app_env: Environment::Test,
-            name: Uuid::new_v4().to_string(),
-            timestamp: Utc::now().timestamp() as u64,
-            ben_account_id: "testAccountId".to_string(),
         })
     }
 }

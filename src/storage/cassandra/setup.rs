@@ -4,7 +4,7 @@ use std::time::Duration;
 use tracing::error;
 
 pub async fn connect_session(
-    config: CassandraConfig,
+    config: &CassandraConfig,
 ) -> Result<cassandra_cpp::Session, anyhow::Error> {
     // !!!!!! Configure cassandra cluster !!!!!!!
     let mut cluster = Cluster::default();
