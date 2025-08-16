@@ -1,5 +1,7 @@
 use anyhow::anyhow;
 use std::env;
+use std::fmt::{Debug, Display};
+use tokio::task::JoinError;
 use tracing::{error, info};
 use uuid::Uuid;
 use xrfq3::storage::{connect_session, PreparedAppStatements};
@@ -78,8 +80,36 @@ pub async fn main() -> anyhow::Result<()> {
             })
     });
 
+    tokio::select! {
+        outcome = grpc_server_task => report_exit("gRPC-worker", outcome),
+    }
+
     info!("!!! xrf197ilz35aq3 started successfully !!!");
     Ok(())
+}
+
+fn report_exit(task_name: &str, outcome: Result<Result<(), impl Debug + Display>, JoinError>) {
+    match outcome {
+        Ok(Ok(())) => {
+            info!("{} has exited", task_name)
+        }
+        Ok(Err(e)) => {
+            error!(
+                error.cause_chain = ?e,
+                error.message = %e,
+                "{} failed",
+                task_name
+            )
+        }
+        Err(e) => {
+            error!(
+                error.cause_chain = ?e,
+                error.message = %e,
+                "{}' task failed to complete",
+                task_name
+            )
+        }
+    }
 }
 
 fn get_region_from_env(env: &Environment) -> Option<String> {
