@@ -1,4 +1,5 @@
 mod chain;
+mod parser;
 mod setup;
 mod statements;
 

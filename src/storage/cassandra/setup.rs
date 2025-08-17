@@ -1,7 +1,9 @@
 use crate::CassandraConfig;
 use cassandra_cpp::Cluster;
+use std::fs;
+use std::path::Path;
 use std::time::Duration;
-use tracing::error;
+use tracing::{debug, error};
 
 pub async fn connect_session(
     config: &CassandraConfig,
@@ -11,6 +13,10 @@ pub async fn connect_session(
     cluster.set_connect_timeout(Duration::from_micros(2));
 
     // Specify nodes to contact:
+    debug!(
+        "****** connecting to cluster, port={}, password={}, user={}, host={} ******",
+        &config.port, &config.password, &config.user, &config.host
+    );
     cluster.set_contact_points(&config.host).map_err(|e| {
         error!("Failed to set contact points to cassandra: {:?}", e);
         anyhow::anyhow!("Failed to set contact points to cassandra :: err={}", e)
@@ -53,6 +59,15 @@ pub async fn create_keyspace(
         error!("Failed to create keyspace: {:?}", err);
         anyhow::anyhow!("Failed to create keyspace :: err={}", err)
     })?;
+
+    Ok(())
+}
+
+pub fn apply_cql_file(
+    file_path: &Path,
+    session: &cassandra_cpp::Session,
+) -> Result<(), anyhow::Error> {
+    debug!("Applying cql file path: {:?}", file_path);
 
     Ok(())
 }
