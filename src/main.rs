@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display};
 use tokio::task::JoinError;
 use tracing::{error, info};
 use uuid::Uuid;
-use xrfq3::storage::{connect_session, PreparedAppStatements};
+use xrfq3::storage::{connect_session, create_keyspace, PreparedAppStatements};
 use xrfq3::{
     load_config, setup_tracing_logger, ApplicationContext, Environment, Server, APP_REGION,
     XRF_Q3_ENV,
@@ -24,11 +24,27 @@ pub async fn main() -> anyhow::Result<()> {
         anyhow!("Failed to load configuration: {}", err)
     })?;
 
+    let _guard = setup_tracing_logger(&config.app.name, &config.log);
+
+    // Connect to cassandra sessions
     let cassandra_session = match connect_session(&config.database.cassandra).await {
         Ok(cassandra_session) => cassandra_session,
         Err(err) => return Err(anyhow!("Failed to connect to Cassandra: {}", err)),
     };
 
+    // create cassandra keyspace
+    create_keyspace(
+        &config.database.cassandra.keyspace,
+        config.database.cassandra.replication_factor,
+        &cassandra_session,
+    )
+    .await
+    .map_err(|err| {
+        error!("Failed to create keyspace: {}", err);
+        anyhow!("Failed to create keyspace: {}", err)
+    })?;
+
+    // create Cassandra prepared statements
     let prepared_stmts = match PreparedAppStatements::new(&cassandra_session).await {
         Ok(stmts) => stmts,
         Err(err) => {
@@ -56,8 +72,6 @@ pub async fn main() -> anyhow::Result<()> {
             return Err(anyhow!("failed to load application context: {}", err));
         }
     };
-
-    let _guard = setup_tracing_logger(&config.app.name, &config.log);
 
     let server = Server::build_and_load(config, cassandra_session, app_ctx)
         .await

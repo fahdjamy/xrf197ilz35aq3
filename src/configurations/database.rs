@@ -56,9 +56,11 @@ pub struct CassandraConfig {
     pub port: u16,
     pub user: String,
     pub host: String,
+    pub keyspace: String,
     pub password: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub connect_timeout: u16,
+    pub replication_factor: u8,
 }
 
 #[derive(Deserialize, Debug, Clone)]

@@ -7,8 +7,10 @@ database:
   cassandra:
     ssl: false
     port: 9044
+    host: "127.0.0.1"
     connect_timeout: 5
     replication_factor: 1
+    keyspace: "xrf_q3_block"
   timescale:
     require_ssl: false
   redis:
