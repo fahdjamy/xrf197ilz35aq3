@@ -46,7 +46,7 @@ pub async fn main() -> anyhow::Result<()> {
     let app_ctx = match ApplicationContext::load(
         Uuid::new_v4().to_string(),
         region,
-        &config.database.redis_config,
+        &config.database.redis,
         prepared_stmts,
     )
     .await
