@@ -4,7 +4,9 @@ use std::fmt::{Debug, Display};
 use tokio::task::JoinError;
 use tracing::{error, info};
 use uuid::Uuid;
-use xrfq3::storage::{connect_session, create_keyspace, PreparedAppStatements};
+use xrfq3::storage::{
+    apply_cql_migrations, connect_session, create_keyspace, PreparedAppStatements,
+};
 use xrfq3::{
     load_config, setup_tracing_logger, ApplicationContext, Environment, Server, APP_REGION,
     XRF_Q3_ENV,
@@ -43,6 +45,15 @@ pub async fn main() -> anyhow::Result<()> {
         error!("Failed to create keyspace: {}", err);
         anyhow!("Failed to create keyspace: {}", err)
     })?;
+
+    // run cql migrations
+    let cql_migrations_dir = "cql";
+    apply_cql_migrations(cql_migrations_dir, &cassandra_session)
+        .await
+        .map_err(|err| {
+            error!("Failed to apply cql migrations, err={}", err);
+            anyhow!("Failed to apply cql migrations, err={}", err)
+        })?;
 
     // create Cassandra prepared statements
     let prepared_stmts = match PreparedAppStatements::new(&cassandra_session).await {

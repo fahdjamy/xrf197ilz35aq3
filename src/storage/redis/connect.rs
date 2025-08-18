@@ -1,5 +1,6 @@
 use crate::RedisConfig;
 use redis::aio::ConnectionManager;
+use tracing::info;
 
 pub async fn get_redis_client(config: &RedisConfig) -> Result<ConnectionManager, String> {
     // redis://[username]:[password]@[hostname]:[port]/[dbNumber]
@@ -11,9 +12,10 @@ pub async fn get_redis_client(config: &RedisConfig) -> Result<ConnectionManager,
     // [port]: The port number on which the Redis server is listening to (default is 6379).
     // [dbNumber]: (Optional) The specific database number to connect to (e.g., /0, /1).
     let redis_address = format!(
-        "redis://{}:{}@{}:{}",
-        &config.username, &config.password, &config.hostname, &config.port
+        "redis://{}:{}@{}:{}/{}",
+        &config.username, &config.password, &config.hostname, &config.port, &config.database
     );
+    info!("Connecting to redis at ===> {}", &redis_address);
     let client = redis::Client::open(redis_address)
         .map_err(|err| return err.to_string())
         .map_err(|e| {

@@ -18,9 +18,9 @@ database:
     database: 0
     username: ''
     password: ''
-    hostname: local
     uri_scheme: local
     require_tls: false
+    hostname: 127.0.0.1
 
 server:
   grpc:

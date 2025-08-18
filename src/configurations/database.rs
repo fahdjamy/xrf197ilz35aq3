@@ -19,7 +19,6 @@ pub struct RedisConfig {
     pub username: String,
     pub hostname: String,
     pub require_tls: bool,
-    pub uri_scheme: String,
 }
 
 impl RedisConfig {
@@ -31,7 +30,6 @@ impl RedisConfig {
             username: "".to_string(),
             password: "".to_string(),
             database: "0".to_string(),
-            uri_scheme: "redis".to_string(),
         }
     }
 }

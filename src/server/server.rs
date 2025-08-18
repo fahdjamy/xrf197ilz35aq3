@@ -14,8 +14,8 @@ use std::time::Duration;
 use tonic::transport::{Identity, Server, ServerTlsConfig};
 use tracing::{debug, info, warn};
 
-const SSL_PEM_SERVE_KEY_PATH: &str = "./local/secret/ssl/server.key";
-const SSL_PEM_SERVE_CERT_PATH: &str = "./local/secret/ssl/server.crt";
+const SSL_PEM_SERVE_KEY_PATH: &str = "local/secrets/ssl/server.key";
+const SSL_PEM_SERVE_CERT_PATH: &str = "local/secrets/ssl/server.crt";
 
 pub struct GrpcServer {
     timeout: Duration,
@@ -61,6 +61,8 @@ impl GrpcServer {
         let key_path = &get_path_from_env_or(KEY_PEM_PATH, SSL_PEM_SERVE_KEY_PATH, &app_env)?;
         let cert_path = &get_path_from_env_or(CERT_PEM_PATH, SSL_PEM_SERVE_CERT_PATH, &app_env)?;
 
+        info!("key_path={}, cert_path={}", key_path, cert_path);
+
         //// Load the PEM-encoded data directly. Pem (Privacy-Enhanced Mail)
         let cert_pem = load_pem_data(Path::new(cert_path))?;
         let key_pem = load_pem_data(Path::new(key_path))?;
@@ -96,10 +98,13 @@ fn get_path_from_env_or(
             return Err(anyhow::anyhow!("Invalid/missing XRF Environment variables"));
         }
         warn!(
-            "Environment variable {} is missing, will use default :: env={}",
-            env_key, app_env
+            "Environment variable {} is missing, will use default :: env={}, default={}",
+            env_key, app_env, default
         );
     }
-    let path = path_from_env.expect(default);
+    let path = path_from_env.unwrap_or_else(|err| {
+        warn!("Environment variable {} is invalid: {}", env_key, err);
+        default.to_string()
+    });
     Ok(path)
 }
