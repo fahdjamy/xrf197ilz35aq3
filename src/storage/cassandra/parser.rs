@@ -1,3 +1,7 @@
+use std::fs;
+use std::path::Path;
+use tracing::{debug, error, info};
+
 /// ParserState: Represents the current parsing state while iterating through the CQL file.
 enum ParseState {
     /// Default state, processing regular CQL.
@@ -76,4 +80,45 @@ fn parse_cql_statements(cql_context: &str) -> Vec<String> {
     }
 
     statements
+}
+
+/// Reads a CQL file from the given path, parses it into individual statements,
+/// and executes them sequentially against the provided Cassandra session.
+pub async fn apply_cql_file(
+    file_path: &Path,
+    session: &cassandra_cpp::Session,
+) -> Result<(), anyhow::Error> {
+    debug!("Applying cql file path: {:?}", file_path);
+
+    // 1. Read cql file content
+    let cql_content = fs::read_to_string(file_path)?;
+
+    // 2. Parse the content into a list of clean statements.
+    let statements = parse_cql_statements(&cql_content);
+    if statements.is_empty() {
+        info!("No cql statements found.");
+        return Ok(());
+    }
+
+    info!("found cql statements: size={}", statements.len());
+
+    // 3. Execute each statement sequentially.
+    for (index, statement) in statements.iter().enumerate() {
+        info!(
+            "Executing CQL statement: path={:?}, index: {}, state: {}",
+            file_path, index, statement
+        );
+        match session.execute(statement).await {
+            Ok(_) => {
+                info!("Successfully executed CQL statement");
+            }
+            Err(error) => {
+                error!("Failed to execute CQL statement: {}", error);
+                info!("failed statement \n \t\t {}", statement);
+                return Err(anyhow::anyhow!("Failed to execute CQL statement"));
+            }
+        }
+    }
+
+    Ok(())
 }

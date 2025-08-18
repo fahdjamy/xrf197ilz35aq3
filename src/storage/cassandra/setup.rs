@@ -1,9 +1,10 @@
+use crate::storage::apply_cql_file;
 use crate::CassandraConfig;
+use anyhow::anyhow;
 use cassandra_cpp::Cluster;
-use std::fs;
-use std::path::Path;
+use std::fs::read_dir;
 use std::time::Duration;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 pub async fn connect_session(
     config: &CassandraConfig,
@@ -63,11 +64,47 @@ pub async fn create_keyspace(
     Ok(())
 }
 
-pub fn apply_cql_file(
-    file_path: &Path,
+pub async fn apply_cql_migrations(
+    cql_dir: &str,
     session: &cassandra_cpp::Session,
 ) -> Result<(), anyhow::Error> {
-    debug!("Applying cql file path: {:?}", file_path);
+    info!("applying cql migrations...");
 
+    let mut cql_files = Vec::new();
+
+    // 1. Read the directory entries.
+    let entries =
+        read_dir(cql_dir).map_err(|err| anyhow!("Failed to read cql directory: {:?}", err))?;
+
+    // 2. Collect all valid .cql file paths.
+    for entry in entries {
+        let entry = entry.map_err(|err| anyhow!("Failed to read cql entry: {:?}", err))?;
+        let path = entry.path();
+
+        // Check if it's a file and has the .cql extension.
+        if path.is_file() {
+            if let Some(extension) = path.extension() {
+                if extension == "cql" {
+                    cql_files.push(path);
+                }
+            }
+        }
+    }
+
+    if cql_files.is_empty() {
+        info!("No cql files found, skipping CQL migration run...");
+        return Ok(());
+    }
+
+    // 3. Sort the files alphabetically to ensure a consistent execution order.
+    //    This is crucial for migrations (e.g., 001_..., 002_...).
+    cql_files.sort();
+
+    // 4. Execute each file in order.
+    for path in &cql_files {
+        apply_cql_file(path, session).await?;
+    }
+
+    info!("CQL migrations successfully run.");
     Ok(())
 }
