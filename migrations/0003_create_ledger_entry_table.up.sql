@@ -1,6 +1,6 @@
 -- Add up a migration script here
 
-CREATE TYPE entry_type AS ENUM ('Debit', 'Credit');
+CREATE TYPE entry_type AS ENUM ('Debit', 'Credit', 'Initialization');
 
 CREATE TABLE IF NOT EXISTS ledger_entry
 (

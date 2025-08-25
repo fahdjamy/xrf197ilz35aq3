@@ -82,9 +82,9 @@ impl FromStr for AccountType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Normal" | "normal" => Ok(AccountType::Normal),
             "Wallet" | "wallet" => Ok(AccountType::Wallet),
-            "Escrow" | "escrow" => Ok(AccountType::Escrow),
+            "Escrow" | "escrow" | "ESCROW" => Ok(AccountType::Escrow),
+            "Normal" | "normal" | "NORMAL" => Ok(AccountType::Normal),
             "SystemFee" | "system_fee" => Ok(AccountType::SystemFee),
             _ => Err(DomainError::ParseError(
                 "unrecognized account type".to_string(),
