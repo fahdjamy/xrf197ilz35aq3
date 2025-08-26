@@ -34,7 +34,7 @@ pub async fn save_block_chain(
         .bind(4, block.region.to_string().as_str())
         .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
     statement
-        .bind(4, block.version.to_string().as_str())
+        .bind(5, block.version.to_string().as_str())
         .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
 
     let mut entry_ids_col = cassandra_cpp::List::new();
@@ -45,19 +45,19 @@ pub async fn save_block_chain(
             .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
     }
     statement
-        .bind(5, entry_ids_col)
+        .bind(6, entry_ids_col)
         .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
     statement
-        .bind(6, block.creation_date.timestamp_millis())
+        .bind(7, block.creation_date.timestamp_millis())
         .map_err(|err| CassandraDBError::SetValueError(err.to_string()))?;
 
     ////// execute the prepared statement and save the data to DB
-    let result = session
+    session
         .execute_with_payloads(&statement)
         .await
         .map_err(|err| CassandraDBError::ExecutionError(err.to_string()))?;
 
-    Ok(result.0.row_count() == 1)
+    Ok(true)
 }
 
 pub async fn prepare_insert_block_statement(

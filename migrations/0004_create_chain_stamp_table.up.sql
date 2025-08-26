@@ -5,6 +5,6 @@ CREATE TABLE IF NOT EXISTS chain_stamp
     timestamp         TIMESTAMP WITH TIME ZONE NOT NULL,
     modification_time TIMESTAMP WITH TIME ZONE NOT NULL,
     version           VARCHAR(10)              NOT NULL,
-    root_stamp        VARCHAR(10),
+    root_stamp        VARCHAR(500),
     child_stamp       VARCHAR(500)
 )

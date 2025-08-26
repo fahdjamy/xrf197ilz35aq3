@@ -3,7 +3,7 @@ CREATE TYPE monetary_tx_type AS ENUM ('Payment', 'Transfer', 'Reversal', 'Commis
 
 CREATE TABLE IF NOT EXISTS monetary_transaction
 (
-    account_id        VARCHAR(10)              NOT NULL,
+    account_id        VARCHAR(100)             NOT NULL,
     amount            NUMERIC(25, 4)           NOT NULL,
     timestamp         TIMESTAMP WITH TIME ZONE NOT NULL,
     modification_date TIMESTAMP WITH TIME ZONE NOT NULL,
