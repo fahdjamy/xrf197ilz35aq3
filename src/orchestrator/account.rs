@@ -35,6 +35,8 @@ pub async fn create_account(
     let curr = Currency::from_str(&currency)
         .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
 
+    let mut ledger_description = "initialization for newly created account".to_string();
+
     let created_or_saved_acct =
         match find_account_by_acct_type(&mut *db_tx, &user_ctx.user_fp, acct_type.clone()).await? {
             Some(saved_acct) => {
@@ -43,6 +45,7 @@ pub async fn create_account(
                         "account already exists".to_string(),
                     ));
                 }
+                ledger_description = "creating another wallet for an existing account".to_string();
                 saved_acct
             }
             None => {
@@ -74,7 +77,7 @@ pub async fn create_account(
     };
 
     let mut ledger_desc = Vec::new();
-    ledger_desc.push("initialization for newly created account".to_string());
+    ledger_desc.push(ledger_description);
 
     let block = match create_initial_block_chain(
         created_or_saved_acct.id.clone(),
