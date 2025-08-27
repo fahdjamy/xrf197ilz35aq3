@@ -236,3 +236,37 @@ WHERE user_fp = $1
 
     Ok(result)
 }
+
+#[tracing::instrument(level = "debug", skip(pg_pool, acct_type, user_fp))]
+pub async fn find_account_by_acct_type<'a, E>(
+    pg_pool: E,
+    user_fp: &str,
+    acct_type: AccountType,
+) -> Result<Option<Account>, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    info!("finding account by currency and acct_type");
+
+    let result = sqlx::query_as!(
+        AccountDO,
+        r#"
+SELECT  id,
+        locked,
+        user_fp,
+        timezone,
+        status as "status: _",
+        currency as "currency: _",
+        creation_time,
+        modification_time,
+        acct_type as "acct_type: _"
+FROM user_account
+WHERE user_fp = $1 AND acct_type = $2"#,
+        user_fp,
+        acct_type as AccountType,
+    )
+    .fetch_one(pg_pool)
+    .await;
+
+    handle_saved_account_result(result)
+}
