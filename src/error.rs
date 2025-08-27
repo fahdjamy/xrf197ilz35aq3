@@ -87,28 +87,57 @@ pub enum OrchestrateError {
     #[error("`{0}`")]
     InvalidArgument(String),
     #[error("`{0}`")]
-    DatabaseError(#[from] PgDatabaseError),
+    DatabaseError(String),
     #[error("`{0}`")]
     InvalidRecordState(String),
     #[error("`{0}`")]
-    RowConstraintViolation(String),
+    RecordAlreadyExists(String),
 }
 
 impl OrchestrateError {
     pub fn error_code(&self) -> u16 {
         match self {
             OrchestrateError::ServerError(_) => 500,
-            OrchestrateError::DatabaseError(pg_err) => match pg_err {
-                PgDatabaseError::NotFound => 404,
-                PgDatabaseError::UniqueViolation => 409,
-                PgDatabaseError::RecordExists(_) => 409,
-                PgDatabaseError::ForeignKeyViolation => 409,
-                _ => 500,
-            },
+            OrchestrateError::DatabaseError(_) => 500,
             OrchestrateError::NotFoundError(_) => 404,
             OrchestrateError::InvalidArgument(_) => 400,
             OrchestrateError::InvalidRecordState(_) => 400,
-            OrchestrateError::RowConstraintViolation(_) => 400,
+            OrchestrateError::RecordAlreadyExists(_) => 409,
+        }
+    }
+}
+
+impl From<PgDatabaseError> for OrchestrateError {
+    fn from(e: PgDatabaseError) -> Self {
+        match e {
+            PgDatabaseError::NotFound => {
+                OrchestrateError::NotFoundError("record not found".to_string())
+            }
+            PgDatabaseError::UniqueViolation => {
+                OrchestrateError::InvalidArgument("record already exists".to_string())
+            }
+            PgDatabaseError::ForeignKeyViolation => {
+                OrchestrateError::ServerError("foreign key violation".to_string())
+            }
+            PgDatabaseError::RecordExists(val) => OrchestrateError::RecordAlreadyExists(val),
+            PgDatabaseError::InvalidRecordState(val) => {
+                OrchestrateError::ServerError(val.to_string())
+            }
+            PgDatabaseError::TransactionStepError(val) => {
+                OrchestrateError::ServerError(val.to_string())
+            }
+            PgDatabaseError::InvalidArgument(val) => OrchestrateError::InvalidArgument(val),
+            PgDatabaseError::Unknown(val) => OrchestrateError::ServerError(val.to_string()),
+            PgDatabaseError::Configuration(val)
+            | PgDatabaseError::Tls(val)
+            | PgDatabaseError::Encode(val)
+            | PgDatabaseError::Decode(val)
+            | PgDatabaseError::Protocol(val) => OrchestrateError::DatabaseError(val.to_string()),
+            PgDatabaseError::PoolTimedOut
+            | PgDatabaseError::PoolClosed
+            | PgDatabaseError::WorkerCrashed => {
+                OrchestrateError::DatabaseError("database connection error".to_string())
+            }
         }
     }
 }

@@ -41,7 +41,7 @@ pub async fn create_account(
         match find_account_by_acct_type(&mut *db_tx, &user_ctx.user_fp, acct_type.clone()).await? {
             Some(saved_acct) => {
                 if saved_acct.currency == curr {
-                    return Err(OrchestrateError::RowConstraintViolation(
+                    return Err(OrchestrateError::RecordAlreadyExists(
                         "account already exists".to_string(),
                     ));
                 }

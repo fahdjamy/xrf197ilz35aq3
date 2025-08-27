@@ -181,8 +181,8 @@ fn map_orchestrator_err_to_grpc_error(event: &str, err: OrchestrateError) -> Sta
             error!("event={} :: database error: {}", event, err);
             Status::internal("Internal server error")
         }
-        OrchestrateError::RowConstraintViolation(err) => {
-            error!("event={} :: row constraint err :: err={}", event, err);
+        OrchestrateError::RecordAlreadyExists(err) => {
+            error!("event={} :: record already exists :: err={}", event, err);
             Status::already_exists(err.to_string())
         }
         _ => Status::internal("Internal server error"),

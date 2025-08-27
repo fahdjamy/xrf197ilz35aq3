@@ -10,10 +10,10 @@ pub async fn rollback_db_transaction(
     tx.rollback().await.map_err(|err| {
         let err_msg = "failed to rollback transaction";
         log::error!("event={} :: msg='{}' :: err={}", event, err_msg, err);
-        OrchestrateError::DatabaseError(PgDatabaseError::TransactionStepError(format!(
-            "{} :: err={}",
-            err_msg, err
-        )))
+        OrchestrateError::DatabaseError(
+            PgDatabaseError::TransactionStepError(format!("{} :: err={}", err_msg, err))
+                .to_string(),
+        )
     })?;
     Ok(())
 }
@@ -36,9 +36,9 @@ pub async fn commit_db_transaction(
     tx.commit().await.map_err(|err| {
         let err_msg = "failed to commit transaction";
         log::error!("event={} :: msg='{}' :: err={}", event, err_msg, err);
-        OrchestrateError::DatabaseError(PgDatabaseError::TransactionStepError(format!(
-            "{} :: err={}",
-            err_msg, err
-        )))
+        OrchestrateError::DatabaseError(
+            PgDatabaseError::TransactionStepError(format!("{} :: err={}", err_msg, err))
+                .to_string(),
+        )
     })
 }

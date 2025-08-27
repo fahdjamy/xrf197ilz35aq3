@@ -37,7 +37,7 @@ where
         Ok(activity) => Ok(Some(activity)),
         Err(err) => match err {
             PgDatabaseError::NotFound => Ok(None),
-            _ => Err(OrchestrateError::DatabaseError(err)),
+            _ => Err(err.into()),
         },
     }
 }

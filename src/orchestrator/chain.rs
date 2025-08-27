@@ -33,7 +33,7 @@ async fn add_child_chain_stamp(
         // Child was already set as a child for this parent cs. No need to update
         return Ok(true);
     } else if !child_cs.has_parent() || !child_cs.is_parent(&parent_chain_stamp) {
-        return Err(OrchestrateError::RowConstraintViolation(
+        return Err(OrchestrateError::RecordAlreadyExists(
             "root cs is not the parent for the child".to_string(),
         ));
     }
