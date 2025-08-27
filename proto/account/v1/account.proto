@@ -18,7 +18,7 @@ message AccountResponse {
   string account_type = 4;
   google.protobuf.Timestamp creation_time = 5;
   google.protobuf.Timestamp modification_time = 6;
-  WalletResponse wallet_holding = 7;
+  repeated WalletResponse wallets = 7;
 }
 
 ///// Create account
@@ -42,6 +42,7 @@ message CreateAccountResponse {
 message FindAccountByCurrencyAndTypeRequest {
   string currency = 1;
   string acct_type = 2;
+  bool include_wallets = 3;
 }
 
 message FindAccountByCurrencyAndTypeResponse {
@@ -51,6 +52,7 @@ message FindAccountByCurrencyAndTypeResponse {
 ////// Get account balance
 message FindWalletRequest {
   string account_id = 1;
+  string currency = 2;
 }
 
 message FindWalletResponse {
@@ -69,8 +71,18 @@ message AccountTypesList {
 message FindAccountsByCurrencyOrTypeRequest {
   optional CurrencyList currencies = 1;
   optional AccountTypesList acct_types = 2;
+  bool include_wallets = 3;
 }
 
 message FindAccountsByCurrencyOrTypeResponse {
   repeated AccountResponse accounts = 1;
+}
+///// Find Account by AccountId
+message FindAccountByIdRequest {
+  string account_id = 1;
+  bool include_wallets = 2;
+}
+
+message FindAccountByIdResponse {
+  AccountResponse account = 1;
 }

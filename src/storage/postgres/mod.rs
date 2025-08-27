@@ -18,4 +18,4 @@ pub use currency::{fetch_currency_rate, save_currency_rate_record};
 pub use initialize::setup_postgres;
 pub use ledger::{bulk_save_ledger, save_ledger};
 pub use transaction::save_monetary_tx;
-pub use wallet::{create_wallet, fetch_user_wallets, fetch_wallet, update_wallet_balance};
+pub use wallet::{create_wallet, fetch_user_wallets, fetch_wallets, update_wallet_balance};

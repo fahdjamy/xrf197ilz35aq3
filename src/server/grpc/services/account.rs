@@ -12,8 +12,8 @@ use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
 use crate::{
     create_account, find_account_by_currency_and_type, find_user_wallet_for_acct,
-    generate_request_id, get_user_accounts_by_currencies_or_types, DEFAULT_TIMEZONE,
-    REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
+    find_user_wallets_for_acct, generate_request_id, get_user_accounts_by_currencies_or_types,
+    DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
 };
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
@@ -102,8 +102,11 @@ impl AccountService for AccountServiceManager {
         .await
         .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
+        let mut wallets = Vec::<WalletHolding>::new();
+        wallets.push(wallet);
+
         Ok(Response::new(CreateAccountResponse {
-            account: Some(create_account_response(&account, &wallet)),
+            account: Some(map_account_response(&account, wallets)),
         }))
     }
 
@@ -138,7 +141,7 @@ impl AccountService for AccountServiceManager {
 
         let account_resp: Vec<AccountResponse> = saved_accounts_and_wallet
             .iter()
-            .map(|(acct, wallet)| create_account_response(&acct, &wallet))
+            .map(|(acct, wallet)| map_account_response(&acct, &wallet))
             .collect();
 
         Ok(Response::new(FindAccountsByCurrencyOrTypeResponse {
@@ -154,19 +157,19 @@ impl AccountService for AccountServiceManager {
         trace_request!(request, "get_user_account");
         let req = request.into_inner();
 
-        let (account, wallet) =
+        let (account, wallets) =
             match find_account_by_currency_and_type(&self.pg_pool, &req.currency, &req.acct_type)
                 .await
                 .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?
             {
-                Some((account, wallet)) => (account, wallet),
+                Some((account, wallets)) => (account, wallets),
                 None => {
                     return Err(Status::not_found("no account found"));
                 }
             };
 
         Ok(Response::new(FindAccountByCurrencyAndTypeResponse {
-            account: Some(create_account_response(&account, &wallet)),
+            account: Some(map_account_response(&account, wallets)),
         }))
     }
 }
@@ -184,7 +187,7 @@ fn map_orchestrator_err_to_grpc_error(event: &str, err: OrchestrateError) -> Sta
     }
 }
 
-fn create_account_response(account: &Account, wallet: &WalletHolding) -> AccountResponse {
+fn map_account_response(account: &Account, wallets: Vec<WalletHolding>) -> AccountResponse {
     AccountResponse {
         locked: account.locked,
         status: account.status.to_string(),
@@ -198,16 +201,19 @@ fn create_account_response(account: &Account, wallet: &WalletHolding) -> Account
             seconds: account.modification_time.timestamp(),
             nanos: account.modification_time.timestamp_subsec_nanos() as i32,
         }),
-        wallet_holding: Some(WalletResponse {
-            balance: f32::try_from(wallet.balance).unwrap_or_else(|er| {
-                warn!("Err converting balance : err={}, defaulted to 0.0", er);
-                0.0
-            }),
-            currency: wallet.currency.to_string(),
-            modification_time: Some(Timestamp {
-                seconds: wallet.modification_time.timestamp(),
-                nanos: wallet.modification_time.timestamp_subsec_nanos() as i32,
-            }),
-        }),
+        wallets: wallets
+            .iter()
+            .map(|w_holding| WalletResponse {
+                balance: f32::try_from(w_holding.balance).unwrap_or_else(|er| {
+                    warn!("Err converting balance : err={}, defaulted to 0.0", er);
+                    0.0
+                }),
+                currency: w_holding.currency.to_string(),
+                modification_time: Some(Timestamp {
+                    seconds: w_holding.modification_time.timestamp(),
+                    nanos: w_holding.modification_time.timestamp_subsec_nanos() as i32,
+                }),
+            })
+            .collect(),
     }
 }

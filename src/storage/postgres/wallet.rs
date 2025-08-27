@@ -38,10 +38,10 @@ VALUES ($1, $2, $3, $4)",
     skip(pg_pool, account_id),
     name = "fetch account balance"
 )]
-pub async fn fetch_wallet<'a, E>(
+pub async fn fetch_wallets<'a, E>(
     pg_pool: E,
     account_id: &str,
-) -> Result<Option<WalletHolding>, PgDatabaseError>
+) -> Result<Option<Vec<WalletHolding>>, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
@@ -56,7 +56,7 @@ FROM wallet WHERE account_id = $1
        "#,
         account_id
     )
-    .fetch_one(pg_pool)
+    .fetch_all(pg_pool)
     .await;
 
     match result {
