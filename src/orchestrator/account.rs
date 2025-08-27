@@ -4,7 +4,7 @@ use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
 use crate::storage::{
-    fetch_user_accounts_by_currencies_and_types, fetch_user_wallets,
+    fetch_user_accounts_by_currencies_and_types, fetch_user_wallets, find_account_by_acct_type,
     find_account_by_currency_and_acct_type, find_account_by_id, save_account,
     save_beneficiary_account,
 };
@@ -29,19 +29,41 @@ pub async fn create_account(
     let event = "createAccount";
     let mut db_tx = start_db_transaction(pool, event).await?;
 
-    let new_acct =
-        if let Some(acct) = create_new_acct(&mut db_tx, &currency, &acct_type, &user_ctx).await? {
-            acct
-        } else {
-            rollback_db_transaction(db_tx, event).await?;
-            return Err(OrchestrateError::ServerError(
-                "failed to create new account".to_string(),
-            ));
+    let acct_type = AccountType::from_str(&acct_type)
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+
+    let curr = Currency::from_str(&currency)
+        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
+
+    let created_or_saved_acct =
+        match find_account_by_acct_type(&mut *db_tx, &user_ctx.user_fp, acct_type.clone()).await? {
+            Some(saved_acct) => {
+                if saved_acct.currency == curr {
+                    return Err(OrchestrateError::RowConstraintViolation(
+                        "account already exists".to_string(),
+                    ));
+                }
+                saved_acct
+            }
+            None => {
+                if let Some(acct) = create_new_acct(&mut db_tx, curr, acct_type, &user_ctx).await? {
+                    acct
+                } else {
+                    rollback_db_transaction(db_tx, event).await?;
+                    return Err(OrchestrateError::ServerError(
+                        "failed to create new account".to_string(),
+                    ));
+                }
+            }
         };
 
     ////// 3. create a wallet that belongs to the account
-    let wallet_holding = if let Some(wallet) =
-        create_wallet_holding(&mut *db_tx, new_acct.id.clone(), new_acct.currency.clone()).await?
+    let wallet_holding = if let Some(wallet) = create_wallet_holding(
+        &mut *db_tx,
+        created_or_saved_acct.id.clone(),
+        created_or_saved_acct.currency.clone(),
+    )
+    .await?
     {
         wallet
     } else {
@@ -55,7 +77,7 @@ pub async fn create_account(
     ledger_desc.push("initialization for newly created account".to_string());
 
     let block = match create_initial_block_chain(
-        new_acct.id.clone(),
+        created_or_saved_acct.id.clone(),
         EntryType::Initialization,
         user_ctx,
         cassandra_session,
@@ -78,33 +100,33 @@ pub async fn create_account(
     };
     info!(
         "created new account with id: {} and blockId: {}",
-        new_acct.id, block.id
+        created_or_saved_acct.id, block.id
     );
 
-    Ok((new_acct, wallet_holding))
+    Ok((created_or_saved_acct, wallet_holding))
 }
 
 async fn create_new_acct(
     tx: &mut PgConnection,
-    currency: &String,
-    acct_type: &String,
+    currency: Currency,
+    acct_type: AccountType,
     user_ctx: &UserContext,
 ) -> Result<Option<Account>, OrchestrateError> {
-    let curr = Currency::from_str(&currency)
-        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
-
-    let acct_type = AccountType::from_str(&acct_type)
-        .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
-
     ////// 1. create an account
     let account = Account::new(
         user_ctx.user_fp.clone(),
         user_ctx.timezone.clone(),
-        curr,
-        acct_type,
+        currency,
+        acct_type.clone(),
     );
 
-    //////// 1.1 Save the new account to DB
+    ///// 1.1.1 check if there's an existing account for user with this account type
+    let saved_acct = find_account_by_acct_type(&mut *tx, &user_ctx.user_fp, acct_type).await?;
+    if saved_acct.is_some() {
+        return Ok(saved_acct);
+    }
+
+    ///// 1.1 Save the new account to DB
     let acct_created = save_account(tx, &account).await?;
     if !acct_created {
         return Ok(None);
