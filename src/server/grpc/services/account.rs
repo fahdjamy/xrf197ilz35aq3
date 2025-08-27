@@ -173,18 +173,13 @@ impl AccountService for AccountServiceManager {
 
 fn map_orchestrator_err_to_grpc_error(event: &str, err: OrchestrateError) -> Status {
     match err {
-        OrchestrateError::InvalidArgument(_) => {
-            Status::invalid_argument(format!("Invalid argument: {}", err))
-        }
+        OrchestrateError::InvalidArgument(err) => Status::invalid_argument(err.to_string()),
         OrchestrateError::NotFoundError(err) => Status::not_found(format!("Not found: {}", err)),
         OrchestrateError::DatabaseError(err) => {
             error!("event={} :: database error: {}", event, err);
             Status::internal("Internal server error")
         }
-        OrchestrateError::RecordAlreadyExists(err) => {
-            error!("event={} :: record already exists :: err={}", event, err);
-            Status::already_exists(err.to_string())
-        }
+        OrchestrateError::RecordAlreadyExists(err) => Status::already_exists(err.to_string()),
         _ => Status::internal("Internal server error"),
     }
 }
