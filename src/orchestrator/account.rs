@@ -2,7 +2,7 @@ use crate::context::{ApplicationContext, UserContext};
 use crate::core::{Account, AccountType, Currency, WalletHolding};
 use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
-use crate::orchestrator::create_wallet_holding;
+use crate::orchestrator::{create_wallet_holding, wallet};
 use crate::storage::{
     fetch_user_accounts_by_currencies_and_types, fetch_user_wallets, find_account_by_acct_type,
     find_account_by_currency_and_acct_type, find_account_by_id, save_account,
@@ -10,11 +10,12 @@ use crate::storage::{
 };
 use crate::{
     commit_db_transaction, create_initial_block_chain, find_user_wallet_for_acct,
-    rollback_db_transaction, start_db_transaction,
+    find_user_wallets_for_acct, rollback_db_transaction, start_db_transaction,
 };
 use cassandra_cpp::{PreparedStatement, Session};
 use config::Map;
 use sqlx::{PgConnection, PgPool};
+use std::collections::HashMap;
 use std::str::FromStr;
 use tracing::{error, info};
 
@@ -152,7 +153,7 @@ pub async fn find_account_by_currency_and_type(
     pool: &PgPool,
     currency: &str,
     acct_type: &str,
-) -> Result<Option<(Account, WalletHolding)>, OrchestrateError> {
+) -> Result<Option<(Account, Vec<WalletHolding>)>, OrchestrateError> {
     let currency = Currency::from_str(currency)
         .map_err(|err| OrchestrateError::InvalidArgument(err.to_string()))?;
     let acct_type = AccountType::from_str(acct_type)
@@ -160,10 +161,10 @@ pub async fn find_account_by_currency_and_type(
 
     match find_account_by_currency_and_acct_type(pool, currency, acct_type).await? {
         None => Ok(None),
-        Some(account) => match find_user_wallet_for_acct(pool, &account.id).await? {
-            None => Ok(None),
-            Some(saved_wallet) => Ok(Some((account, saved_wallet))),
-        },
+        Some(account) => {
+            let wallets = find_user_wallets_for_acct(pool, &account.id).await?;
+            Ok(Some((account, wallets)))
+        }
     }
 }
 
@@ -259,7 +260,7 @@ pub async fn get_user_accounts_by_currencies_or_types(
     currencies: &[String],
     acct_types: &[String],
     user_ctx: &UserContext,
-) -> Result<Vec<(Account, WalletHolding)>, OrchestrateError> {
+) -> Result<Vec<(Account, Vec<WalletHolding>)>, OrchestrateError> {
     if currencies.is_empty() && acct_types.is_empty() {
         return Err(OrchestrateError::InvalidArgument(
             "no filter criteria specified to find user account".to_string(),
@@ -290,19 +291,23 @@ pub async fn get_user_accounts_by_currencies_or_types(
         account_ids_to_fetch.push(account.id.clone());
     });
 
-    let user_wallet_holdings: Map<String, WalletHolding> =
-        fetch_user_wallets(pool, &account_ids_to_fetch)
-            .await?
-            .iter()
-            .map(|wallet| (wallet.account_id.clone(), wallet.clone()))
-            .collect();
+    let wallets = fetch_user_wallets(pool, &account_ids_to_fetch).await?;
 
-    let mut result: Vec<(Account, WalletHolding)> = Vec::new();
+    let mut user_wallet_holdings: Map<String, Vec<WalletHolding>> = HashMap::new();
+
+    for wallet in wallets {
+        user_wallet_holdings
+            .entry(wallet.account_id.clone())
+            .or_insert_with(Vec::new)
+            .push(wallet);
+    }
+
+    let mut result: Vec<(Account, Vec<WalletHolding>)> = Vec::new();
     user_accounts
         .iter()
         .for_each(|account| match user_wallet_holdings.get(&account.id) {
-            Some(wallet_holding) => {
-                result.push((account.clone(), wallet_holding.clone()));
+            Some(wallets) => {
+                result.push((account.clone(), wallets.clone()));
             }
             None => {
                 error!(

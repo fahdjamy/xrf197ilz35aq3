@@ -12,8 +12,8 @@ use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
 use crate::{
     create_account, find_account_by_currency_and_type, find_user_wallet_for_acct,
-    find_user_wallets_for_acct, generate_request_id, get_user_accounts_by_currencies_or_types,
-    DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
+    generate_request_id, get_user_accounts_by_currencies_or_types, DEFAULT_TIMEZONE,
+    REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
 };
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
@@ -54,7 +54,7 @@ impl AccountService for AccountServiceManager {
         get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
 
         let req = request.into_inner();
-        let wallet = find_user_wallet_for_acct(&self.pg_pool, &req.account_id)
+        let wallet = find_user_wallet_for_acct(&self.pg_pool, &req.account_id, &req.currency)
             .await
             .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
@@ -140,8 +140,8 @@ impl AccountService for AccountServiceManager {
         .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         let account_resp: Vec<AccountResponse> = saved_accounts_and_wallet
-            .iter()
-            .map(|(acct, wallet)| map_account_response(&acct, &wallet))
+            .into_iter()
+            .map(|(acct, wallets)| map_account_response(&acct, wallets))
             .collect();
 
         Ok(Response::new(FindAccountsByCurrencyOrTypeResponse {

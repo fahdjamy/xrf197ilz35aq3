@@ -23,4 +23,5 @@ pub use ledger::create_ledger;
 pub use transaction::{credit_wallet, debit_wallet_transaction};
 pub use wallet::{
     create_wallet_holding, credit_wallet_holding, debit_wallet, find_user_wallet_for_acct,
+    find_user_wallets_for_acct,
 };

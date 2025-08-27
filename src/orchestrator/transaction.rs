@@ -99,7 +99,7 @@ pub async fn perform_wallet_transaction(
     ////// 2. Debit user wallet
     let amount = amount - commission; // subtract commission from final amount
     let debit_tx = MonetaryTransaction::payment(amount, account_id.clone());
-    debit_wallet(&mut db_tx, amount, &account_id).await?;
+    debit_wallet(&mut db_tx, amount, &account_id, user_acct.currency).await?;
 
     let account_debited = save_monetary_tx(&mut *db_tx, &debit_tx).await?;
     if !account_debited {
@@ -236,6 +236,12 @@ async fn charge_commission(
     )
     .await?;
 
-    credit_wallet_holding(&mut *db_tx, amount_to_save, &system_acct.id).await?;
+    credit_wallet_holding(
+        &mut *db_tx,
+        amount_to_save,
+        &system_acct.id,
+        user_acct.currency,
+    )
+    .await?;
     Ok(())
 }

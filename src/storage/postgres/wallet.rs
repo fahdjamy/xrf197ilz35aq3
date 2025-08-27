@@ -41,7 +41,7 @@ VALUES ($1, $2, $3, $4)",
 pub async fn fetch_wallets<'a, E>(
     pg_pool: E,
     account_id: &str,
-) -> Result<Option<Vec<WalletHolding>>, PgDatabaseError>
+) -> Result<Vec<WalletHolding>, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
@@ -60,8 +60,8 @@ FROM wallet WHERE account_id = $1
     .await;
 
     match result {
-        Ok(wallet) => Ok(Some(wallet)),
-        Err(Error::RowNotFound) => Ok(None),
+        Ok(wallet) => Ok(wallet),
+        Err(Error::RowNotFound) => Ok(Vec::new()),
         Err(err) => Err(err.into()),
     }
 }
