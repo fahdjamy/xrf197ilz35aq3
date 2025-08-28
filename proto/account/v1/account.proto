@@ -7,6 +7,7 @@ import "google/protobuf/timestamp.proto";
 service AccountService {
   rpc FindWallet(FindWalletRequest) returns (FindWalletResponse);
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+  rpc FindAccountById(FindAccountByIdRequest) returns (FindAccountByIdResponse);
   rpc FindAccountsByCurrencyOrType(FindAccountsByCurrencyOrTypeRequest) returns (FindAccountsByCurrencyOrTypeResponse);
   rpc FindAccountByCurrencyAndType(FindAccountByCurrencyAndTypeRequest) returns (FindAccountByCurrencyAndTypeResponse);
 }

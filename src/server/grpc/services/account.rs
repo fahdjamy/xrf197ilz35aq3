@@ -5,15 +5,15 @@ use crate::grpc_services::account_service_server::AccountService;
 use crate::grpc_services::{
     AccountResponse, CreateAccountRequest, CreateAccountResponse,
     FindAccountByCurrencyAndTypeRequest, FindAccountByCurrencyAndTypeResponse,
-    FindAccountsByCurrencyOrTypeRequest, FindAccountsByCurrencyOrTypeResponse, FindWalletRequest,
-    FindWalletResponse, WalletResponse,
+    FindAccountByIdRequest, FindAccountByIdResponse, FindAccountsByCurrencyOrTypeRequest,
+    FindAccountsByCurrencyOrTypeResponse, FindWalletRequest, FindWalletResponse, WalletResponse,
 };
 use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
 use crate::{
     create_account, find_account_by_currency_and_type, find_user_wallet_for_acct,
-    generate_request_id, get_user_accounts_by_currencies_or_types, DEFAULT_TIMEZONE,
-    REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
+    generate_request_id, get_user_account_by_id, get_user_accounts_by_currencies_or_types,
+    DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
 };
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
@@ -110,6 +110,25 @@ impl AccountService for AccountServiceManager {
         }))
     }
 
+    async fn find_account_by_id(
+        &self,
+        request: Request<FindAccountByIdRequest>,
+    ) -> Result<Response<FindAccountByIdResponse>, Status> {
+        let event = "findAccountById";
+        trace_request!(request, "find_account_by_id");
+
+        let req = request.into_inner();
+
+        let (account, wallets) =
+            get_user_account_by_id(&self.pg_pool, &req.account_id, req.include_wallets)
+                .await
+                .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+
+        Ok(Response::new(FindAccountByIdResponse {
+            account: Some(map_account_response(&account, wallets)),
+        }))
+    }
+
     async fn find_accounts_by_currency_or_type(
         &self,
         request: Request<FindAccountsByCurrencyOrTypeRequest>,
@@ -148,7 +167,6 @@ impl AccountService for AccountServiceManager {
             accounts: account_resp,
         }))
     }
-
     async fn find_account_by_currency_and_type(
         &self,
         request: Request<FindAccountByCurrencyAndTypeRequest>,

@@ -2,15 +2,15 @@ use crate::context::{ApplicationContext, UserContext};
 use crate::core::{Account, AccountType, Currency, WalletHolding};
 use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
-use crate::orchestrator::{create_wallet_holding, wallet};
+use crate::orchestrator::create_wallet_holding;
 use crate::storage::{
     fetch_user_accounts_by_currencies_and_types, fetch_user_wallets, find_account_by_acct_type,
     find_account_by_currency_and_acct_type, find_account_by_id, save_account,
     save_beneficiary_account,
 };
 use crate::{
-    commit_db_transaction, create_initial_block_chain, find_user_wallet_for_acct,
-    find_user_wallets_for_acct, rollback_db_transaction, start_db_transaction,
+    commit_db_transaction, create_initial_block_chain, find_user_wallets_for_acct,
+    rollback_db_transaction, start_db_transaction,
 };
 use cassandra_cpp::{PreparedStatement, Session};
 use config::Map;
@@ -318,4 +318,31 @@ pub async fn get_user_accounts_by_currencies_or_types(
         });
 
     Ok(result)
+}
+
+pub async fn get_user_account_by_id(
+    pool: &PgPool,
+    account_id: &str,
+    include_wallet: bool,
+) -> Result<(Account, Vec<WalletHolding>), OrchestrateError> {
+    let account = match find_account_by_id(pool, account_id).await? {
+        Some(account) => account,
+        None => {
+            return Err(OrchestrateError::NotFoundError(
+                "no account found".to_string(),
+            ));
+        }
+    };
+    if !include_wallet {
+        return Ok((account, vec![]));
+    }
+
+    let wallets = find_user_wallets_for_acct(pool, account_id).await?;
+    if wallets.is_empty() {
+        return Err(OrchestrateError::InvalidRecordState(
+            "no wallets exist for an existing account".to_string(),
+        ));
+    }
+
+    Ok((account, wallets))
 }
