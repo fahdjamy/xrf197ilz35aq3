@@ -72,6 +72,41 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 
 #[tracing::instrument(
     level = "debug",
+    skip(pg_pool, account, acct_id),
+    name = "Update account"
+)]
+pub async fn update_account<'a, E>(
+    pg_pool: E,
+    acct_id: &str,
+    account: &Account,
+) -> Result<bool, PgDatabaseError>
+where
+    E: Executor<'a, Database = Postgres>,
+{
+    info!("updating account :: acctId={}", account.id);
+    let result = sqlx::query!(
+        "
+UPDATE user_account SET
+                    status = $1,
+                    locked = $2,
+                    timezone = $3,
+                    modification_time = $4
+WHERE id = $5
+                       ",
+        account.status.clone() as AccountStatus,
+        account.locked,
+        account.timezone,
+        account.modification_time,
+        acct_id
+    )
+    .execute(pg_pool)
+    .await?;
+
+    Ok(result.rows_affected() == 1)
+}
+
+#[tracing::instrument(
+    level = "debug",
     skip(pg_pool, account_id),
     name = "Find account by id"
 )]
