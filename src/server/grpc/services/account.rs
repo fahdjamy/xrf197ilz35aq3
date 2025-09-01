@@ -140,19 +140,10 @@ impl AccountService for AccountServiceManager {
         let user_ctx =
             UserContext::load_user_context(user_fp, DEFAULT_TIMEZONE.to_string(), None, None);
 
-        let currencies = match req.currencies {
-            None => vec![],
-            Some(currency_list) => currency_list.currencies.iter().cloned().collect(),
-        };
-        let acct_types = match req.acct_types {
-            None => vec![],
-            Some(acct_types_list) => acct_types_list.types.iter().cloned().collect(),
-        };
-
         let saved_accounts_and_wallet = get_user_accounts_by_currencies_or_types(
             &self.pg_pool,
-            &currencies,
-            &acct_types,
+            &req.currencies,
+            &req.acct_types,
             &user_ctx,
         )
         .await

@@ -61,17 +61,14 @@ message FindWalletResponse {
 }
 
 ///// GetAllUserAccounts
-message CurrencyList {
-  repeated string currencies = 1;
-}
 
 message AccountTypesList {
   repeated string types = 1;
 }
 
 message FindAccountsByCurrencyOrTypeRequest {
-  optional CurrencyList currencies = 1;
-  optional AccountTypesList acct_types = 2;
+  repeated string currencies = 1;
+  repeated string acct_types = 2;
   bool include_wallets = 3;
 }
 
