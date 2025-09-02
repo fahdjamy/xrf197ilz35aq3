@@ -6,7 +6,9 @@ use crate::grpc_services::{
     AccountResponse, CreateAccountRequest, CreateAccountResponse,
     FindAccountByCurrencyAndTypeRequest, FindAccountByCurrencyAndTypeResponse,
     FindAccountByIdRequest, FindAccountByIdResponse, FindAccountsByCurrencyOrTypeRequest,
-    FindAccountsByCurrencyOrTypeResponse, FindWalletRequest, FindWalletResponse, WalletResponse,
+    FindAccountsByCurrencyOrTypeResponse, FindWalletRequest, FindWalletResponse,
+    FreezeAccountRequest, FreezeAccountResponse, LockAccountRequest, LockAccountResponse,
+    UpdateAccountRequest, UpdateAccountResponse, WalletResponse,
 };
 use crate::server::grpc::header::get_xrf_user_auth_header;
 use crate::server::grpc::interceptors::trace_request;
@@ -74,6 +76,27 @@ impl AccountService for AccountServiceManager {
                 }),
             })),
         }
+    }
+
+    async fn lock_account(
+        &self,
+        request: Request<LockAccountRequest>,
+    ) -> Result<Response<LockAccountResponse>, Status> {
+        todo!()
+    }
+
+    async fn update_account(
+        &self,
+        request: Request<UpdateAccountRequest>,
+    ) -> Result<Response<UpdateAccountResponse>, Status> {
+        todo!()
+    }
+
+    async fn freeze_account(
+        &self,
+        request: Request<FreezeAccountRequest>,
+    ) -> Result<Response<FreezeAccountResponse>, Status> {
+        todo!()
     }
 
     async fn create_account(

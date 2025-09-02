@@ -6,6 +6,9 @@ import "google/protobuf/timestamp.proto";
 
 service AccountService {
   rpc FindWallet(FindWalletRequest) returns (FindWalletResponse);
+  rpc LockAccount(LockAccountRequest) returns (LockAccountResponse);
+  rpc UpdateAccount(UpdateAccountRequest) returns (UpdateAccountResponse);
+  rpc FreezeAccount(FreezeAccountRequest) returns (FreezeAccountResponse);
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
   rpc FindAccountById(FindAccountByIdRequest) returns (FindAccountByIdResponse);
   rpc FindAccountsByCurrencyOrType(FindAccountsByCurrencyOrTypeRequest) returns (FindAccountsByCurrencyOrTypeResponse);
@@ -37,6 +40,39 @@ message WalletResponse {
 
 message CreateAccountResponse {
   AccountResponse account = 1;
+}
+
+////// Update Account
+message UpdateAccountRequest {
+  string account_id = 1;
+  optional string timezone = 3;
+  optional string account_type = 4;
+}
+
+message UpdateAccountResponse {
+  bool updated = 1;
+}
+
+////// Freeze Account
+
+message FreezeAccountRequest {
+  string account_id = 1;
+  bool freeze = 2;
+}
+
+message FreezeAccountResponse {
+  bool success = 1;
+}
+
+////// Lock Account
+
+message LockAccountRequest {
+  string account_id = 1;
+  bool lock = 2;
+}
+
+message LockAccountResponse {
+  bool success = 1;
 }
 
 ///// Get Account detail
