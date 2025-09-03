@@ -6,6 +6,7 @@ pub const ILZ_Q3_POSTGRES_DB_URL_ENV_KEY: &str = "ILZ_Q3_DB_URL";
 
 ///////// Http request
 pub const XRF_USER_FINGERPRINT: &str = "xrf-user-fp";
+pub const XRF_USER_TIMEZONE: &str = "xrf-user-timezone";
 pub const REQUEST_ID_KEY: &str = "request-id";
 pub const ILZ_Q3_ENV_KEY: &str = "XRF_Q3_API_KEY";
 pub const CLIENT_REQ_ID: &'static str = "request_id";

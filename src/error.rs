@@ -92,12 +92,15 @@ pub enum OrchestrateError {
     InvalidRecordState(String),
     #[error("`{0}`")]
     RecordAlreadyExists(String),
+    #[error("`{0}`")]
+    IllegalState(String),
 }
 
 impl OrchestrateError {
     pub fn error_code(&self) -> u16 {
         match self {
             OrchestrateError::ServerError(_) => 500,
+            OrchestrateError::IllegalState(_) => 400,
             OrchestrateError::DatabaseError(_) => 500,
             OrchestrateError::NotFoundError(_) => 404,
             OrchestrateError::InvalidArgument(_) => 400,

@@ -6,7 +6,9 @@ mod ledger;
 mod transaction;
 mod unique;
 
-pub use account::{Account, AccountStatus, AccountType, BeneficiaryAccount, WalletHolding};
+pub use account::{
+    Account, AccountStatus, AccountType, BeneficiaryAccount, UpdateAccountReq, WalletHolding,
+};
 pub use block::{Block, BlockRegion};
 pub use currency::{get_currency_hash, Currency, CurrencyRate};
 pub use ledger::{EntryType, LedgerEntry};

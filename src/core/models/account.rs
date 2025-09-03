@@ -118,6 +118,8 @@ pub struct Account {
     pub locked: bool, // A security measure to prevent unauthorized access, often triggered by multiple failed tx attempts
     pub user_fp: String,
     pub timezone: String,
+    // This represents the main currency for the account. if user does not specify a currency when
+    // making a monetary transaction, currency will be used when picking which wallet to credit/debit
     pub currency: Currency,
     pub status: AccountStatus,
     pub account_type: AccountType,
@@ -204,6 +206,29 @@ impl Display for BeneficiaryAccount {
             "Beneficiary account: acctId={} || status={}",
             self.id, self.status
         )
+    }
+}
+
+pub struct UpdateAccountReq {
+    pub locked: Option<bool>,
+    pub timezone: Option<String>,
+    pub status: Option<AccountStatus>,
+    pub account_type: Option<AccountType>,
+}
+
+impl UpdateAccountReq {
+    pub fn new(
+        locked: Option<bool>,
+        timezone: Option<String>,
+        status: Option<AccountStatus>,
+        account_type: Option<AccountType>,
+    ) -> Self {
+        UpdateAccountReq {
+            locked,
+            status,
+            timezone,
+            account_type,
+        }
     }
 }
 
