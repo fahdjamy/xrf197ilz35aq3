@@ -230,6 +230,33 @@ impl UpdateAccountReq {
             account_type,
         }
     }
+
+    pub fn build(
+        locked: Option<bool>,
+        status: Option<String>,
+        timezone: Option<String>,
+        account_type: Option<String>,
+    ) -> Result<UpdateAccountReq, DomainError> {
+        let update_status = match status {
+            Some(s) => {
+                Some(AccountStatus::from_str(s.as_str()).map_err(|_| DomainError::ParseError(s))?)
+            }
+            None => None,
+        };
+        let update_account_type = match account_type {
+            Some(a) => {
+                Some(AccountType::from_str(a.as_str()).map_err(|_| DomainError::ParseError(a))?)
+            }
+            None => None,
+        };
+
+        Ok(UpdateAccountReq::new(
+            locked,
+            timezone,
+            update_status,
+            update_account_type,
+        ))
+    }
 }
 
 #[derive(Serialize, Debug, Clone, sqlx::FromRow)]

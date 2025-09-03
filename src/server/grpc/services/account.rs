@@ -1,5 +1,5 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::{Account, WalletHolding};
+use crate::core::{Account, AccountStatus, UpdateAccountReq, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::grpc_services::account_service_server::AccountService;
 use crate::grpc_services::{
@@ -10,12 +10,12 @@ use crate::grpc_services::{
     FreezeAccountRequest, FreezeAccountResponse, LockAccountRequest, LockAccountResponse,
     UpdateAccountRequest, UpdateAccountResponse, WalletResponse,
 };
-use crate::server::grpc::header::get_xrf_user_auth_header;
+use crate::server::grpc::header::{get_xrf_user_auth_header, get_xrf_user_timezone};
 use crate::server::grpc::interceptors::trace_request;
 use crate::{
     create_account, find_account_by_currency_and_type, find_user_wallet_for_acct,
     generate_request_id, get_user_account_by_id, get_user_accounts_by_currencies_or_types,
-    DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
+    update_user_account, DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT, XRF_USER_TIMEZONE,
 };
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
@@ -82,21 +82,96 @@ impl AccountService for AccountServiceManager {
         &self,
         request: Request<LockAccountRequest>,
     ) -> Result<Response<LockAccountResponse>, Status> {
-        todo!()
+        let event = "lockAccount";
+        trace_request!(request, "lock_account");
+        let timezone = get_xrf_user_timezone(&request.metadata(), XRF_USER_TIMEZONE)?;
+        let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
+        let req = request.into_inner();
+
+        info!("lock account, actionLock={}", &req.lock);
+
+        let user_ctx =
+            UserContext::load_user_context(user_fp, timezone, Some(req.account_id.clone()), None);
+
+        let update_req = UpdateAccountReq::new(Some(req.lock), None, None, None);
+
+        let updated = update_user_account(
+            &self.pg_pool,
+            &req.account_id,
+            &user_ctx,
+            update_req,
+            &self.app_ctx,
+        )
+        .await
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+
+        Ok(Response::new(LockAccountResponse { success: updated }))
     }
 
     async fn update_account(
         &self,
         request: Request<UpdateAccountRequest>,
     ) -> Result<Response<UpdateAccountResponse>, Status> {
-        todo!()
+        let event = "updateAccount";
+        trace_request!(request, "update_account");
+        let timezone = get_xrf_user_timezone(&request.metadata(), XRF_USER_TIMEZONE)?;
+        let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
+        let req = request.into_inner();
+
+        info!("updating account, accountId={}", &req.account_id);
+
+        let user_ctx =
+            UserContext::load_user_context(user_fp, timezone, Some(req.account_id.clone()), None);
+
+        let update_req = UpdateAccountReq::build(None, req.timezone, None, None)
+            .map_err(|err| Status::invalid_argument(err.to_string()))?;
+
+        let updated = update_user_account(
+            &self.pg_pool,
+            &req.account_id,
+            &user_ctx,
+            update_req,
+            &self.app_ctx,
+        )
+        .await
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+
+        Ok(Response::new(UpdateAccountResponse { updated }))
     }
 
     async fn freeze_account(
         &self,
         request: Request<FreezeAccountRequest>,
     ) -> Result<Response<FreezeAccountResponse>, Status> {
-        todo!()
+        let event = "freezeAccount";
+        trace_request!(request, "freeze_account");
+        let timezone = get_xrf_user_timezone(&request.metadata(), XRF_USER_TIMEZONE)?;
+        let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
+        let req = request.into_inner();
+
+        info!("freeze account, actionFreeze={}", &req.freeze);
+
+        let user_ctx =
+            UserContext::load_user_context(user_fp, timezone, Some(req.account_id.clone()), None);
+
+        let mut status = AccountStatus::Active;
+        if req.freeze {
+            status = AccountStatus::Inactive;
+        }
+
+        let update_req = UpdateAccountReq::new(None, None, Some(status), None);
+
+        let updated = update_user_account(
+            &self.pg_pool,
+            &req.account_id,
+            &user_ctx,
+            update_req,
+            &self.app_ctx,
+        )
+        .await
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+
+        Ok(Response::new(FreezeAccountResponse { success: updated }))
     }
 
     async fn create_account(

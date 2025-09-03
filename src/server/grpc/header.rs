@@ -51,6 +51,22 @@ pub fn get_xrf_user_auth_header(
     }
 }
 
+pub fn get_xrf_user_timezone(
+    metadata_map: &MetadataMap,
+    header_name: &str,
+) -> Result<String, Status> {
+    let response = get_header_value(metadata_map, header_name);
+    if response.is_none() {
+        Err(Status::invalid_argument(format!("Missing {}", header_name)))
+    } else {
+        let timezone = response.unwrap();
+        if timezone.is_empty() {
+            return Err(Status::invalid_argument(format!("Missing {}", header_name)));
+        }
+        Ok(timezone)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
