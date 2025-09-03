@@ -95,15 +95,9 @@ impl AccountService for AccountServiceManager {
 
         let update_req = UpdateAccountReq::new(Some(req.lock), None, None, None);
 
-        let updated = update_user_account(
-            &self.pg_pool,
-            &req.account_id,
-            &user_ctx,
-            update_req,
-            &self.app_ctx,
-        )
-        .await
-        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+        let updated = update_user_account(&self.pg_pool, &req.account_id, &user_ctx, update_req)
+            .await
+            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(LockAccountResponse { success: updated }))
     }
@@ -126,15 +120,9 @@ impl AccountService for AccountServiceManager {
         let update_req = UpdateAccountReq::build(None, req.timezone, None, None)
             .map_err(|err| Status::invalid_argument(err.to_string()))?;
 
-        let updated = update_user_account(
-            &self.pg_pool,
-            &req.account_id,
-            &user_ctx,
-            update_req,
-            &self.app_ctx,
-        )
-        .await
-        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+        let updated = update_user_account(&self.pg_pool, &req.account_id, &user_ctx, update_req)
+            .await
+            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(UpdateAccountResponse { updated }))
     }
@@ -161,15 +149,9 @@ impl AccountService for AccountServiceManager {
 
         let update_req = UpdateAccountReq::new(None, None, Some(status), None);
 
-        let updated = update_user_account(
-            &self.pg_pool,
-            &req.account_id,
-            &user_ctx,
-            update_req,
-            &self.app_ctx,
-        )
-        .await
-        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+        let updated = update_user_account(&self.pg_pool, &req.account_id, &user_ctx, update_req)
+            .await
+            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(FreezeAccountResponse { success: updated }))
     }

@@ -11,7 +11,7 @@ mod wallet;
 
 pub use account::{
     create_account, create_new_beneficiary_acct, find_account_by_currency_and_type,
-    find_user_acct_by_id, get_user_account_by_id, get_user_accounts_by_currencies_or_types,
+    get_user_account_by_id, get_user_accounts_by_currencies_or_types, update_user_account,
 };
 pub use activity::{create_activity, find_last_user_activity};
 pub use block::create_block;

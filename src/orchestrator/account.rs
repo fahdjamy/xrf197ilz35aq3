@@ -1,5 +1,5 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::{Account, AccountType, Currency, WalletHolding};
+use crate::core::{Account, AccountStatus, AccountType, Currency, UpdateAccountReq, WalletHolding};
 use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
@@ -139,14 +139,72 @@ async fn create_new_acct(
     Ok(Some(account))
 }
 
-pub async fn find_user_acct_by_id(
+pub async fn update_user_account(
     pool: &PgPool,
-    account_id: &str,
-) -> Result<Option<Account>, OrchestrateError> {
-    match find_account_by_id(pool, account_id).await? {
-        None => Ok(None),
-        Some(account) => Ok(Some(account)),
+    acct_id: &str,
+    user_ctx: &UserContext,
+    request: UpdateAccountReq,
+) -> Result<bool, OrchestrateError> {
+    if !is_valid_request(&request) {
+        return Err(OrchestrateError::InvalidArgument(
+            "invalid_request".to_string(),
+        ));
     }
+    let event = "updateAccount";
+    let mut db_tx = start_db_transaction(pool, event).await?;
+    let saved_acct = match find_account_by_id(&mut *db_tx, acct_id).await? {
+        Some(saved_account) => {
+            // Owners are the only ones allowed to update their accounts for now.
+            if saved_account.user_fp != user_ctx.user_fp {
+                return Err(OrchestrateError::NotFoundError(
+                    "account not found".to_string(),
+                ));
+            }
+            saved_account
+        }
+        None => {
+            return Err(OrchestrateError::NotFoundError(
+                "account not found".to_string(),
+            ));
+        }
+    };
+    if saved_acct.status == AccountStatus::Frozen {
+        return Err(OrchestrateError::IllegalState(
+            "account is frozen".to_string(),
+        ));
+    }
+    if request.locked.is_none() && saved_acct.locked {
+        return Err(OrchestrateError::IllegalState(
+            "Can not make updates to a locked account".to_string(),
+        ));
+    }
+
+    let updated_acct_details = update_account_mapper(saved_acct, &request);
+    let updated = save_account(&mut *db_tx, &updated_acct_details).await?;
+    if !updated {
+        // roll back if the account is not updated
+        rollback_db_transaction(db_tx, event).await?;
+    } else {
+        commit_db_transaction(db_tx, event).await?;
+    }
+
+    Ok(updated)
+}
+
+fn update_account_mapper(mut account: Account, update_req: &UpdateAccountReq) -> Account {
+    if update_req.locked.is_some() {
+        account.locked = update_req.locked.clone().unwrap()
+    }
+    if update_req.account_type.is_some() {
+        account.account_type = update_req.account_type.clone().unwrap()
+    }
+    if update_req.timezone.is_some() {
+        account.timezone = update_req.timezone.clone().unwrap()
+    }
+    if update_req.status.is_some() {
+        account.status = update_req.status.clone().unwrap()
+    }
+    account
 }
 
 pub async fn find_account_by_currency_and_type(
@@ -345,4 +403,15 @@ pub async fn get_user_account_by_id(
     }
 
     Ok((account, wallets))
+}
+
+fn is_valid_request(request: &UpdateAccountReq) -> bool {
+    if request.locked.is_none()
+        && request.status.is_none()
+        && request.timezone.is_none()
+        && request.account_type.is_none()
+    {
+        return false;
+    }
+    true
 }
