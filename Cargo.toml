@@ -25,7 +25,7 @@ tracing = "0.1.41"
 
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread", "full"] }
 
-uuid = { version = "1.18.0", features = ["v4", "v7", "v8"] }
+uuid = { version = "1.18.1", features = ["v4", "v7", "v8"] }
 
 chrono = { version = "0.4.41", features = ["serde"] }
 
@@ -35,7 +35,7 @@ cassandra-cpp = "3.0.2"
 
 redis = { version = "1.0.0-alpha.1", features = ["tokio-comp", "connection-manager"] }
 
-sha3 = "0.11.0-rc.2"
+sha3 = "0.11.0-rc.3"
 bytes = "1.10.1"
 
 prost = { version = "0.14.1" }
