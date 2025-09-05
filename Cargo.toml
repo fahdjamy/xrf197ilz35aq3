@@ -54,7 +54,8 @@ features = [
     "chrono", # “adds support for mapping SQL timestamptz to the DateTime<T> type from the chrono crate”
     "migrate", # “gives us access to the same functions used under the hood by sqlx-cli to manage migrations”
     "tls-rustls",
-    "rust_decimal"
+    "rust_decimal",
+    "json"
 ]
 
 [build-dependencies]
