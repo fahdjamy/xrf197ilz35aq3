@@ -1,5 +1,6 @@
 mod account;
 mod activity;
+mod audit;
 mod chain;
 mod currency;
 mod initialize;
