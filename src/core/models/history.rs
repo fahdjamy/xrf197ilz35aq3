@@ -14,6 +14,16 @@ pub enum AuditEventType {
     UPDATE,
 }
 
+impl Display for AuditEventType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AuditEventType::CREATE => write!(f, "CREATE"),
+            AuditEventType::DELETE => write!(f, "DELETE"),
+            AuditEventType::UPDATE => write!(f, "UPDATE"),
+        }
+    }
+}
+
 // A generic struct to represent the data within the 'changes' JSONB column.
 // Using generics here (`<T>`) to make this reusable for any entity type.
 #[derive(Debug, Serialize, Deserialize, Clone)]

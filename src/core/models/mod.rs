@@ -12,7 +12,7 @@ pub use account::{
 };
 pub use block::{Block, BlockRegion};
 pub use currency::{get_currency_hash, Currency, CurrencyRate};
-pub use history::AuditLog;
+pub use history::{AuditEventType, AuditLog};
 pub use ledger::{EntryType, LedgerEntry};
 pub use transaction::{
     ActivityTransaction, MonetaryTransaction, TransactionStatus, TransactionType,
