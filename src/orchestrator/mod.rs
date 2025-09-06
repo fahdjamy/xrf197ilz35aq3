@@ -1,5 +1,6 @@
 mod account;
 mod activity;
+mod audit;
 mod block;
 mod blockchain;
 mod chain;

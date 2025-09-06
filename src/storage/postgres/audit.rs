@@ -4,10 +4,7 @@ use sqlx::{Executor, Postgres};
 use tracing::info;
 
 #[tracing::instrument(level = "debug", skip(pg_pool, audit_log), name = "Create audit log")]
-pub async fn create_audit_log<'a, E>(
-    pg_pool: E,
-    audit_log: AuditLog,
-) -> Result<bool, PgDatabaseError>
+pub async fn save_audit_log<'a, E>(pg_pool: E, audit_log: AuditLog) -> Result<bool, PgDatabaseError>
 where
     E: Executor<'a, Database = Postgres>,
 {
@@ -82,5 +79,6 @@ WHERE entity_id = $1
     )
     .fetch_all(pg_pool)
     .await?;
-    unimplemented!()
+
+    Ok(result)
 }

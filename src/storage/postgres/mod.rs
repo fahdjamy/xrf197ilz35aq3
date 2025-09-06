@@ -14,6 +14,7 @@ pub use account::{
     save_beneficiary_account, update_account,
 };
 pub use activity::{find_last_activity, save_activity};
+pub use audit::{find_audit_logs, save_audit_log};
 pub use chain::{add_child_cs_to_parent, find_chain_stamp_by_id, save_chain_stamp};
 pub use currency::{fetch_currency_rate, save_currency_rate_record};
 pub use initialize::setup_postgres;
