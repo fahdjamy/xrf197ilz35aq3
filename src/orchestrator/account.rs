@@ -1,5 +1,8 @@
 use crate::context::{ApplicationContext, UserContext};
-use crate::core::{Account, AccountStatus, AccountType, Currency, UpdateAccountReq, WalletHolding};
+use crate::core::{
+    Account, AccountStatus, AccountType, AuditEventType, AuditLog, Currency, EntityType,
+    UpdateAccountReq, WalletHolding,
+};
 use crate::core::{BeneficiaryAccount, EntryType};
 use crate::error::OrchestrateError;
 use crate::orchestrator::create_wallet_holding;
@@ -9,8 +12,8 @@ use crate::storage::{
     save_beneficiary_account,
 };
 use crate::{
-    commit_db_transaction, create_initial_block_chain, find_user_wallets_for_acct,
-    rollback_db_transaction, start_db_transaction,
+    commit_db_transaction, create_initial_block_chain, create_new_audit,
+    find_user_wallets_for_acct, rollback_db_transaction, start_db_transaction,
 };
 use cassandra_cpp::{PreparedStatement, Session};
 use config::Map;
@@ -179,16 +182,32 @@ pub async fn update_user_account(
         ));
     }
 
-    let updated_acct_details = update_account_mapper(saved_acct, &request);
-    let updated = save_account(&mut *db_tx, &updated_acct_details).await?;
-    if !updated {
+    let updated_acct_details = update_account_mapper(saved_acct.clone(), &request);
+    if !save_account(&mut *db_tx, &updated_acct_details).await? {
         // roll back if the account is not updated
         rollback_db_transaction(db_tx, event).await?;
-    } else {
-        commit_db_transaction(db_tx, event).await?;
     }
 
-    Ok(updated)
+    // create audit log
+    let audit_log = AuditLog::build(
+        user_ctx.user_fp,
+        acct_id.to_string(),
+        EntityType::Account,
+        AuditEventType::UPDATE,
+        None,
+        None,
+        None,
+        Some(saved_acct),
+        Some(updated_acct_details),
+    )
+    .map_err(|err| OrchestrateError::ServerError(format!("failed to build audit log: {}", err)))?;
+    if !create_new_audit(audit_log, &mut **db_tx).await? {
+        // roll back if the account audit log is not created
+        rollback_db_transaction(db_tx, event).await?;
+    };
+
+    commit_db_transaction(db_tx, event).await?;
+    Ok(true)
 }
 
 fn update_account_mapper(mut account: Account, update_req: &UpdateAccountReq) -> Account {
