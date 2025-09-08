@@ -4,8 +4,14 @@ use tracing::span::Attributes;
 use tracing::Id;
 use tracing_subscriber::layer::Context;
 
-struct RequestIdVisitor {
-    request_id: Option<String>,
+pub struct RequestIdVisitor {
+    pub request_id: Option<String>,
+}
+
+impl RequestIdVisitor {
+    pub fn new() -> Self {
+        RequestIdVisitor { request_id: None }
+    }
 }
 
 impl tracing::field::Visit for RequestIdVisitor {
@@ -18,7 +24,7 @@ impl tracing::field::Visit for RequestIdVisitor {
 
     // We expect the requestId to be a string
     fn record_str(&mut self, field: &Field, value: &str) {
-        if field.name() == "requestId" {
+        if field.name() == "requestId" || field.name() == CLIENT_REQ_ID {
             self.request_id = Some(value.to_string());
         }
     }
@@ -46,11 +52,11 @@ where
 
         extensions.insert(RequestIdInterceptorLayer);
 
-        let mut vistor = RequestIdVisitor { request_id: None };
+        let mut visitor = RequestIdVisitor { request_id: None };
 
-        attrs.record(&mut vistor);
+        attrs.record(&mut visitor);
         // If we find a request_id in the span attributes, assign it
-        let request_id = if let Some(request_id) = vistor.request_id {
+        let request_id = if let Some(request_id) = visitor.request_id {
             request_id
         } else {
             // Generate a new ID if not provided
