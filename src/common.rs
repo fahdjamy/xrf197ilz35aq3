@@ -1,7 +1,15 @@
 use chrono;
+use std::fmt::Display;
 use uuid::Uuid;
 
+#[derive(Debug, Clone)]
 pub struct RequestId(pub String);
+
+impl Display for RequestId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 pub fn generate_request_id() -> String {
     // Replace this with a more robust generator like UUID if preferred

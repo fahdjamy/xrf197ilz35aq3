@@ -1,4 +1,4 @@
-use crate::context::{ApplicationContext, UserContext};
+use crate::context::{ApplicationContext, RequestContext, UserContext};
 use crate::core::{
     Account, AccountStatus, AccountType, AuditEventType, AuditLog, Currency, EntityType,
     UpdateAccountReq, WalletHolding,
@@ -147,6 +147,7 @@ pub async fn update_user_account(
     acct_id: &str,
     user_ctx: &UserContext,
     request: UpdateAccountReq,
+    req_context: RequestContext,
 ) -> Result<bool, OrchestrateError> {
     if !is_valid_request(&request) {
         return Err(OrchestrateError::InvalidArgument(
@@ -194,9 +195,9 @@ pub async fn update_user_account(
         acct_id.to_string(),
         EntityType::Account,
         AuditEventType::UPDATE,
-        None,
-        None,
-        None,
+        req_context.request_ip.clone(),
+        req_context.request_ip,
+        req_context.user_agent,
         Some(saved_acct),
         Some(updated_acct_details),
     )

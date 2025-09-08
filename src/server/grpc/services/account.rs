@@ -1,4 +1,4 @@
-use crate::context::{ApplicationContext, UserContext};
+use crate::context::{ApplicationContext, RequestContext, UserContext};
 use crate::core::{Account, AccountStatus, UpdateAccountReq, WalletHolding};
 use crate::error::OrchestrateError;
 use crate::grpc_services::account_service_server::AccountService;
@@ -94,10 +94,21 @@ impl AccountService for AccountServiceManager {
             UserContext::load_user_context(user_fp, timezone, Some(req.account_id.clone()), None);
 
         let update_req = UpdateAccountReq::new(Some(req.lock), None, None, None);
+        let req_context = RequestContext {
+            request_ip: None,
+            user_agent: None,
+            request_id: None,
+        };
 
-        let updated = update_user_account(&self.pg_pool, &req.account_id, &user_ctx, update_req)
-            .await
-            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+        let updated = update_user_account(
+            &self.pg_pool,
+            &req.account_id,
+            &user_ctx,
+            update_req,
+            req_context,
+        )
+        .await
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(LockAccountResponse { success: updated }))
     }
@@ -120,9 +131,21 @@ impl AccountService for AccountServiceManager {
         let update_req = UpdateAccountReq::build(None, req.timezone, None, None)
             .map_err(|err| Status::invalid_argument(err.to_string()))?;
 
-        let updated = update_user_account(&self.pg_pool, &req.account_id, &user_ctx, update_req)
-            .await
-            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+        let req_context = RequestContext {
+            request_ip: None,
+            user_agent: None,
+            request_id: None,
+        };
+
+        let updated = update_user_account(
+            &self.pg_pool,
+            &req.account_id,
+            &user_ctx,
+            update_req,
+            req_context,
+        )
+        .await
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(UpdateAccountResponse { updated }))
     }
@@ -149,9 +172,21 @@ impl AccountService for AccountServiceManager {
 
         let update_req = UpdateAccountReq::new(None, None, Some(status), None);
 
-        let updated = update_user_account(&self.pg_pool, &req.account_id, &user_ctx, update_req)
-            .await
-            .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
+        let req_context = RequestContext {
+            request_ip: None,
+            user_agent: None,
+            request_id: None,
+        };
+
+        let updated = update_user_account(
+            &self.pg_pool,
+            &req.account_id,
+            &user_ctx,
+            update_req,
+            req_context,
+        )
+        .await
+        .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
 
         Ok(Response::new(FreezeAccountResponse { success: updated }))
     }
