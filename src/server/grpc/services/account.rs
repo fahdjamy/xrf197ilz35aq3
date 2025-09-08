@@ -11,7 +11,7 @@ use crate::grpc_services::{
     UpdateAccountRequest, UpdateAccountResponse, WalletResponse,
 };
 use crate::server::grpc::header::{get_xrf_user_auth_header, get_xrf_user_timezone};
-use crate::server::grpc::interceptors::trace_request;
+use crate::server::grpc::macros::trace_request;
 use crate::{
     create_account, find_account_by_currency_and_type, find_user_wallet_for_acct,
     generate_request_id, get_user_account_by_id, get_user_accounts_by_currencies_or_types,
