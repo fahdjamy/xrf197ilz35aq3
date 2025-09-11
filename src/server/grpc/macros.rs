@@ -21,7 +21,7 @@ macro_rules! trace_request {
 /// Any function that needs the request ID must declare it in its signature
 ///
 /// *Con*: Prop drilling: Because we are passing requestId from a high-level component down to
-/// a deeply nested child component/function. i.e passing it through all the intermediate components
+/// a deeply nested child component/function. i.e. passing it through all the intermediate components
 macro_rules! trace_and_get_id {
     ($req:expr, $span_name:expr) => {{
         // Use a block to return the request_id

@@ -11,11 +11,12 @@ use crate::grpc_services::{
     UpdateAccountRequest, UpdateAccountResponse, WalletResponse,
 };
 use crate::server::grpc::header::{get_xrf_user_auth_header, get_xrf_user_timezone};
-use crate::server::grpc::macros::trace_request;
+use crate::server::grpc::macros::{trace_and_get_id, trace_request};
 use crate::{
     create_account, find_account_by_currency_and_type, find_user_wallet_for_acct,
     generate_request_id, get_user_account_by_id, get_user_accounts_by_currencies_or_types,
-    update_user_account, DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT, XRF_USER_TIMEZONE,
+    update_user_account, RequestId, DEFAULT_TIMEZONE, REQUEST_ID_KEY, XRF_USER_FINGERPRINT,
+    XRF_USER_TIMEZONE,
 };
 use cassandra_cpp::Session;
 use prost_types::Timestamp;
@@ -83,7 +84,7 @@ impl AccountService for AccountServiceManager {
         request: Request<LockAccountRequest>,
     ) -> Result<Response<LockAccountResponse>, Status> {
         let event = "lockAccount";
-        trace_request!(request, "lock_account");
+        let req_id = trace_and_get_id!(request, "lock_account");
         let timezone = get_xrf_user_timezone(&request.metadata(), XRF_USER_TIMEZONE)?;
         let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
         let req = request.into_inner();
@@ -97,7 +98,7 @@ impl AccountService for AccountServiceManager {
         let req_context = RequestContext {
             request_ip: None,
             user_agent: None,
-            request_id: None,
+            request_id: Some(RequestId(req_id)),
         };
 
         let updated = update_user_account(
@@ -118,7 +119,7 @@ impl AccountService for AccountServiceManager {
         request: Request<UpdateAccountRequest>,
     ) -> Result<Response<UpdateAccountResponse>, Status> {
         let event = "updateAccount";
-        trace_request!(request, "update_account");
+        let req_id = trace_and_get_id!(request, "update_account");
         let timezone = get_xrf_user_timezone(&request.metadata(), XRF_USER_TIMEZONE)?;
         let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
         let req = request.into_inner();
@@ -134,7 +135,7 @@ impl AccountService for AccountServiceManager {
         let req_context = RequestContext {
             request_ip: None,
             user_agent: None,
-            request_id: None,
+            request_id: Some(RequestId(req_id)),
         };
 
         let updated = update_user_account(
@@ -155,7 +156,7 @@ impl AccountService for AccountServiceManager {
         request: Request<FreezeAccountRequest>,
     ) -> Result<Response<FreezeAccountResponse>, Status> {
         let event = "freezeAccount";
-        trace_request!(request, "freeze_account");
+        let req_id = trace_and_get_id!(request, "freeze_account");
         let timezone = get_xrf_user_timezone(&request.metadata(), XRF_USER_TIMEZONE)?;
         let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
         let req = request.into_inner();
@@ -175,7 +176,7 @@ impl AccountService for AccountServiceManager {
         let req_context = RequestContext {
             request_ip: None,
             user_agent: None,
-            request_id: None,
+            request_id: Some(RequestId(req_id)),
         };
 
         let updated = update_user_account(
