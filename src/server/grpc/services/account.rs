@@ -197,7 +197,7 @@ impl AccountService for AccountServiceManager {
         request: Request<CreateAccountRequest>,
     ) -> Result<Response<CreateAccountResponse>, Status> {
         let event = "createUserAccount";
-        trace_request!(request, "create_account");
+        let req_id = trace_and_get_id!(request, "create_account");
         let user_fp = get_xrf_user_auth_header(&request.metadata(), XRF_USER_FINGERPRINT)?;
         let req = request.into_inner();
 
@@ -207,6 +207,12 @@ impl AccountService for AccountServiceManager {
         );
         let user_ctx = UserContext::load_user_context(user_fp, req.timezone.clone(), None, None);
 
+        let req_context = RequestContext {
+            request_ip: None,
+            user_agent: None,
+            request_id: Some(RequestId(req_id)),
+        };
+
         let (account, wallet) = create_account(
             &self.pg_pool,
             req.currency,
@@ -214,6 +220,7 @@ impl AccountService for AccountServiceManager {
             &user_ctx,
             &self.cassandra_session,
             &self.app_ctx,
+            req_context,
         )
         .await
         .map_err(|err| map_orchestrator_err_to_grpc_error(event, err))?;
@@ -274,6 +281,7 @@ impl AccountService for AccountServiceManager {
             accounts: account_resp,
         }))
     }
+
     async fn find_account_by_currency_and_type(
         &self,
         request: Request<FindAccountByCurrencyAndTypeRequest>,

@@ -29,6 +29,7 @@ pub async fn create_account(
     user_ctx: &UserContext,
     cassandra_session: &Session,
     app_cxt: &ApplicationContext,
+    request_context: RequestContext,
 ) -> Result<(Account, WalletHolding), OrchestrateError> {
     let event = "createAccount";
     let mut db_tx = start_db_transaction(pool, event).await?;
@@ -53,7 +54,9 @@ pub async fn create_account(
                 saved_acct
             }
             None => {
-                if let Some(acct) = create_new_acct(&mut db_tx, curr, acct_type, &user_ctx).await? {
+                if let Some(acct) =
+                    create_new_acct(&mut db_tx, curr, acct_type, &user_ctx, request_context).await?
+                {
                     acct
                 } else {
                     rollback_db_transaction(db_tx, event).await?;
@@ -118,6 +121,7 @@ async fn create_new_acct(
     currency: Currency,
     acct_type: AccountType,
     user_ctx: &UserContext,
+    req_context: RequestContext,
 ) -> Result<Option<Account>, OrchestrateError> {
     ////// 1. create an account
     let account = Account::new(
@@ -127,17 +131,26 @@ async fn create_new_acct(
         acct_type.clone(),
     );
 
-    ///// 1.1.1 check if there's an existing account for user with this account type
-    let saved_acct = find_account_by_acct_type(&mut *tx, &user_ctx.user_fp, acct_type).await?;
-    if saved_acct.is_some() {
-        return Ok(saved_acct);
-    }
-
     ///// 1.1 Save the new account to DB
     let acct_created = save_account(tx, &account).await?;
     if !acct_created {
         return Ok(None);
     }
+
+    // create audit log
+    let audit_log = AuditLog::build(
+        user_ctx.user_fp,
+        account.id.to_string(),
+        EntityType::Account,
+        AuditEventType::CREATE,
+        req_context.request_ip.clone(),
+        req_context.request_ip,
+        req_context.user_agent,
+        None,
+        Some(account.clone()),
+    )
+    .map_err(|err| OrchestrateError::ServerError(format!("failed to build audit log: {}", err)))?;
+    !create_new_audit(audit_log, &mut **tx).await?;
 
     Ok(Some(account))
 }
