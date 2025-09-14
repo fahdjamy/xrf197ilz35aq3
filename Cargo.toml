@@ -6,7 +6,7 @@ edition = "2021"
 doctest = false
 
 [dependencies]
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.221", features = ["derive"] }
 serde-aux = "4.7.0"
 
 secrecy = { version = "0.10.3", features = ["serde"] }
@@ -42,7 +42,7 @@ prost = { version = "0.14.1" }
 prost-types = "0.14.1"
 tonic-prost = "0.14.2"
 tonic = { version = "0.14.2", features = ["tls-native-roots"] }
-serde_json = "1.0.143"
+serde_json = "1.0.144"
 
 [dependencies.sqlx]
 version = "0.8.6"
