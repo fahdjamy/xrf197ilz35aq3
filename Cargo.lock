@@ -196,9 +196,9 @@ dependencies = [
 
 [[package]]
 name = "backon"
-version = "1.5.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "302eaff5357a264a2c42f127ecb8bac761cf99749fc3dc95677e2743991f99e7"
+checksum = "592277618714fbcecda9a02ba7a8781f319d26532a88553bbacc77ba5d2b3a8d"
 dependencies = [
  "fastrand",
 ]
@@ -2298,9 +2298,9 @@ dependencies = [
 
 [[package]]
 name = "redis"
-version = "1.0.0-alpha.1"
+version = "1.0.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d737192c0df02302f90cd18c8c73c8b06228d693ab24ebe8c7f378d7f429acb"
+checksum = "92eee65955fc9d44e8efda17dd3794b7cf1e9dd96f39b805ae551111f4b77ce2"
 dependencies = [
  "arc-swap",
  "arcstr",
