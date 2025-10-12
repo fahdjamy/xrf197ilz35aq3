@@ -17,7 +17,7 @@ use crate::{
 };
 use cassandra_cpp::{PreparedStatement, Session};
 use config::Map;
-use sqlx::{PgConnection, PgPool};
+use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
 use std::str::FromStr;
 use tracing::{error, info};
@@ -117,7 +117,7 @@ pub async fn create_account(
 }
 
 async fn create_new_acct(
-    tx: &mut PgConnection,
+    tx: &mut Transaction<'_, Postgres>,
     currency: Currency,
     acct_type: AccountType,
     user_ctx: &UserContext,
@@ -132,14 +132,14 @@ async fn create_new_acct(
     );
 
     ///// 1.1 Save the new account to DB
-    let acct_created = save_account(tx, &account).await?;
+    let acct_created = save_account(&mut **tx, &account).await?;
     if !acct_created {
         return Ok(None);
     }
 
     // create audit log
     let audit_log = AuditLog::build(
-        user_ctx.user_fp,
+        user_ctx.user_fp.clone(),
         account.id.to_string(),
         EntityType::Account,
         AuditEventType::CREATE,
@@ -150,7 +150,9 @@ async fn create_new_acct(
         Some(account.clone()),
     )
     .map_err(|err| OrchestrateError::ServerError(format!("failed to build audit log: {}", err)))?;
-    !create_new_audit(audit_log, &mut **tx).await?;
+    if !create_new_audit(audit_log, tx).await? {
+        return Ok(None);
+    }
 
     Ok(Some(account))
 }
@@ -200,11 +202,14 @@ pub async fn update_user_account(
     if !save_account(&mut *db_tx, &updated_acct_details).await? {
         // roll back if the account is not updated
         rollback_db_transaction(db_tx, event).await?;
+        return Err(OrchestrateError::ServerError(
+            "failed to update account details due to failure when saving account".to_string(),
+        ));
     }
 
     // create audit log
     let audit_log = AuditLog::build(
-        user_ctx.user_fp,
+        user_ctx.user_fp.clone(),
         acct_id.to_string(),
         EntityType::Account,
         AuditEventType::UPDATE,
@@ -215,9 +220,13 @@ pub async fn update_user_account(
         Some(updated_acct_details),
     )
     .map_err(|err| OrchestrateError::ServerError(format!("failed to build audit log: {}", err)))?;
-    if !create_new_audit(audit_log, &mut **db_tx).await? {
+    if !create_new_audit(audit_log, &mut db_tx).await? {
         // roll back if the account audit log is not created
         rollback_db_transaction(db_tx, event).await?;
+        return Err(OrchestrateError::ServerError(
+            "failed to update account details due to failure when creating an audit log"
+                .to_string(),
+        ));
     };
 
     commit_db_transaction(db_tx, event).await?;

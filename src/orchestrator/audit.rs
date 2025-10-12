@@ -7,7 +7,7 @@ pub async fn create_new_audit(
     audit_log: AuditLog,
     db_tx: &mut Transaction<'_, Postgres>,
 ) -> Result<bool, OrchestrateError> {
-    let saved = save_audit_log(db_tx, audit_log).await?;
+    let saved = save_audit_log(&mut **db_tx, audit_log).await?;
     Ok(saved)
 }
 
