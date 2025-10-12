@@ -1,5 +1,4 @@
 use crate::RequestId;
-use std::fmt::Display;
 
 #[derive(Clone, Debug)]
 pub struct RequestContext {

@@ -51,6 +51,16 @@ impl Display for EntityType {
     }
 }
 
+impl From<String> for EntityType {
+    fn from(s: String) -> Self {
+        match s.as_ref() {
+            "Account" => EntityType::Account,
+            "Transaction" => EntityType::Transaction,
+            _ => EntityType::Account,
+        }
+    }
+}
+
 #[derive(Serialize, Debug, Clone, sqlx::FromRow)]
 pub struct AuditLog {
     pub id: String,
