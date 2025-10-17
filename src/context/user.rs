@@ -39,6 +39,10 @@ impl UserContext {
 
 impl Display for UserContext {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "testCtx={}", self.is_test_ctx)
+        write!(
+            f,
+            "testCtx={} :: timezone={}",
+            self.is_test_ctx, self.timezone
+        )
     }
 }
