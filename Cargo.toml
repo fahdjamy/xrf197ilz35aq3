@@ -62,5 +62,5 @@ features = [
 tonic-prost-build = "0.14.2"
 
 [dev-dependencies]
-testcontainers = "0.25.0"
+testcontainers = "0.25.2"
 testcontainers-modules = { version = "0.13.0", features = ["redis"] }
