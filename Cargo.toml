@@ -33,7 +33,7 @@ rust_decimal = { version = "1.39.0", features = ["macros"] }
 
 cassandra-cpp = "3.0.2"
 
-redis = { version = "1.0.0-rc.2", features = ["tokio-comp", "connection-manager"] }
+redis = { version = "1.0.0-rc.3", features = ["tokio-comp", "connection-manager"] }
 
 sha3 = "0.11.0-rc.3"
 bytes = "1.10.1"
